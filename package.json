@@ -1,0 +1,16 @@
+{
+  "name": "xun-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A web app starter for Xun (xun + htmx + sqlite + tailwind)",
+  "scripts": {
+    "dev": "concurrently \"npm run watch\" \"echo 'Ready for go run cmd/app/main.go'\"",
+    "build": "tailwindcss -i tailwind.css -o cmd/app/app/public/assets/app.css --minify",
+    "watch": "tailwindcss -i tailwind.css -o cmd/app/app/public/assets/app.css --watch",
+    "clean": "rm -rf cmd/app/app/public/assets"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "tailwindcss": "^3.4.1"
+  }
+}

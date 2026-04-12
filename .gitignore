@@ -24,8 +24,23 @@ profile.cov
 go.work
 go.work.sum
 
+# Database
+*.db
+*.db-wal
+*.db-shm
+
 # env file
 .env
+
+# Built assets
+cmd/app/app/public/assets/*.css
+!cmd/app/app/public/assets/*.css
+
+# node_modules
+node_modules/
+
+# Build output
+bin/
 
 # Editor/IDE
 # .idea/
