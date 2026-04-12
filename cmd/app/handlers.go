@@ -157,6 +157,15 @@ func handleRegister(c *xun.Context) error {
 
 func handleLogout(c *xun.Context) error {
 	c.Set("session", nil)
+	// Clear the session cookie
+	http.SetCookie(c.Response, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		MaxAge:   -1, // Expire immediately
+	})
 	if isHTMX(c) {
 		c.WriteHeader(htmx.HxRedirect, "/")
 		c.WriteStatus(http.StatusOK)
