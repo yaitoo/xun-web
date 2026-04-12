@@ -32,10 +32,6 @@ go.work.sum
 # env file
 .env
 
-# Built assets
-cmd/app/app/public/assets/*.css
-!cmd/app/app/public/assets/*.css
-
 # node_modules
 node_modules/
 
