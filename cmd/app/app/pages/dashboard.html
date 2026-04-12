@@ -1,0 +1,63 @@
+<!--layout:dashboard-->
+<div class="mb-8">
+  <h1 class="text-3xl font-bold mb-2">Welcome, {{.name}}</h1>
+  <p class="text-gray-400">Your dashboard overview</p>
+</div>
+
+<div class="grid md:grid-cols-3 gap-6 mb-8">
+  <div class="card">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 bg-tech-cyan/10 rounded-lg flex items-center justify-center">
+        <svg class="w-6 h-6 text-tech-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+        </svg>
+      </div>
+      <div>
+        <p class="text-2xl font-bold">Dashboard</p>
+        <p class="text-gray-400 text-sm">Member Area</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 bg-tech-purple/10 rounded-lg flex items-center justify-center">
+        <span class="text-tech-purple font-mono font-bold">X</span>
+      </div>
+      <div>
+        <p class="text-2xl font-bold">Xun</p>
+        <p class="text-gray-400 text-sm">v1.1.6</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 bg-tech-green/10 rounded-lg flex items-center justify-center">
+        <svg class="w-6 h-6 text-tech-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+        </svg>
+      </div>
+      <div>
+        <p class="text-2xl font-bold">SQLite</p>
+        <p class="text-gray-400 text-sm">File Database</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-semibold">Quick Actions</h2>
+  </div>
+  <div class="flex flex-wrap gap-4">
+    <a href="/dashboard/users" class="btn btn-primary">
+      Manage Users
+    </a>
+    <form action="/logout" method="POST" class="inline">
+      <button type="submit" class="btn btn-secondary">
+        Sign Out
+      </button>
+    </form>
+  </div>
+</div>

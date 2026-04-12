@@ -1,0 +1,42 @@
+<!--layout:base-->
+<div class="min-h-screen flex items-center justify-center py-12 px-6">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold mb-2">
+        <span class="text-tech-cyan">Sign</span>
+        <span class="text-gray-300">In</span>
+      </h1>
+      <p class="text-gray-400">Welcome back to Xun Web</p>
+    </div>
+    
+    <div class="card">
+      <!-- Error message placeholder -->
+      <div id="error-message"></div>
+      
+      <form 
+        hx-post="/login" 
+        hx-swap="none"
+        class="space-y-5"
+      >
+        <div>
+          <label class="label">Email</label>
+          <input type="email" name="email" class="input" placeholder="you@example.com" required>
+        </div>
+        
+        <div>
+          <label class="label">Password</label>
+          <input type="password" name="password" class="input" placeholder="••••••••" required>
+        </div>
+        
+        <button type="submit" class="btn btn-primary w-full py-2.5">
+          Sign In
+        </button>
+      </form>
+      
+      <p class="text-center text-sm text-gray-400 mt-6">
+        Don't have an account?
+        <a href="/register" class="text-tech-cyan hover:text-tech-cyan/80">Register</a>
+      </p>
+    </div>
+  </div>
+</div>

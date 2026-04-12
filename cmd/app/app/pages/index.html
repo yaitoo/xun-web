@@ -1,0 +1,122 @@
+<!--layout:base-->
+<div class="bg-dark-50">
+  <!-- Hero Section -->
+  <section class="relative overflow-hidden py-24 px-6">
+    <div class="absolute inset-0 bg-gradient-to-br from-tech-cyan/5 to-tech-purple/10"></div>
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-tech-cyan/10 rounded-full blur-3xl"></div>
+    
+    <div class="relative max-w-4xl mx-auto text-center">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-dark-200 rounded-full border border-dark-300 text-sm text-gray-400 mb-8">
+        <span class="w-2 h-2 bg-tech-cyan rounded-full animate-pulse"></span>
+        Now with xun + htmx + SQLite
+      </div>
+      
+      <h1 class="text-5xl md:text-6xl font-bold mb-6">
+        <span class="text-tech-cyan">Xun</span>
+        <span class="text-white">Web</span>
+        <span class="text-gray-500">Starter</span>
+      </h1>
+      
+      <p class="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
+        A modern web application scaffold built with xun framework, htmx, SQLite, and TailwindCSS. Fast, lightweight, and ready to customize.
+      </p>
+      
+      <div class="flex flex-wrap gap-4 justify-center">
+        {{if .session}}
+        <a href="/dashboard" class="btn btn-primary text-lg px-8 py-3">Go to Dashboard</a>
+        {{else}}
+        <a href="/register" class="btn btn-primary text-lg px-8 py-3">Get Started</a>
+        <a href="/login" class="btn btn-secondary text-lg px-8 py-3">Sign In</a>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack Section -->
+  <section class="py-16 px-6 border-t border-dark-200">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-2xl font-bold text-center mb-12">Built On</h2>
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <div class="card">
+          <div class="w-12 h-12 bg-tech-cyan/10 rounded-lg flex items-center justify-center mb-4">
+            <span class="text-tech-cyan text-2xl font-mono font-bold">X</span>
+          </div>
+          <h3 class="font-semibold mb-2">xun</h3>
+          <p class="text-sm text-gray-400">SSR framework with PageRoute, ViewTemplate, and asset helpers</p>
+        </div>
+        
+        <div class="card">
+          <div class="w-12 h-12 bg-tech-purple/10 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-tech-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold mb-2">htmx</h3>
+          <p class="text-sm text-gray-400">Dynamic partial updates without writing JavaScript</p>
+        </div>
+        
+        <div class="card">
+          <div class="w-12 h-12 bg-tech-green/10 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-tech-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold mb-2">SQLite</h3>
+          <p class="text-sm text-gray-400">Zero-config file database with yaitoo/sqle integration</p>
+        </div>
+        
+        <div class="card">
+          <div class="w-12 h-12 bg-tech-amber/10 rounded-lg flex items-center justify-center mb-4">
+            <svg class="w-6 h-6 text-tech-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold mb-2">TailwindCSS</h3>
+          <p class="text-sm text-gray-400">Dark tech theme with utility-first CSS</p>
+        </div>
+        
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="py-16 px-6 border-t border-dark-200">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-2xl font-bold text-center mb-12">Features</h2>
+      <div class="grid md:grid-cols-3 gap-6">
+        
+        <div class="card">
+          <h3 class="font-semibold mb-3">SSR + HTMX</h3>
+          <p class="text-sm text-gray-400">Server-side rendered pages with client-side partial updates. Best of both worlds without the complexity.</p>
+        </div>
+        
+        <div class="card">
+          <h3 class="font-semibold mb-3">Session Auth</h3>
+          <p class="text-sm text-gray-400">Secure HMAC-signed session cookies. Register, login, and protected routes out of the box.</p>
+        </div>
+        
+        <div class="card">
+          <h3 class="font-semibold mb-3">Asset Hashing</h3>
+          <p class="text-sm text-gray-400">Automatic cache-busting via xun asset helpers. Never served stale CSS or JS again.</p>
+        </div>
+        
+        <div class="card">
+          <h3 class="font-semibold mb-3">Migrations</h3>
+          <p class="text-sm text-gray-400">SQLite schema management via yaitoo/sqle migrate. Version-controlled database changes.</p>
+        </div>
+        
+        <div class="card">
+          <h3 class="font-semibold mb-3">Dark Tech Theme</h3>
+          <p class="text-sm text-gray-400">Beautiful dark UI with cyan/purple/green accents. Professional look from day one.</p>
+        </div>
+        
+        <div class="card">
+          <h3 class="font-semibold mb-3">Mono-repo</h3>
+          <p class="text-sm text-gray-400">Shared node_modules and Tailwind config across all Go commands. Simple and maintainable.</p>
+        </div>
+        
+      </div>
+    </div>
+  </section>
+</div>
