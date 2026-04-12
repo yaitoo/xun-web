@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #0f1117;
+    --color-surface: #161922;
+    --color-border: #282d3a;
+  }
+
+  body {
+    @apply bg-dark-50 text-gray-100 font-sans;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center;
+  }
+
+  .btn-primary {
+    @apply bg-tech-cyan text-dark-50 hover:bg-tech-cyan/90;
+  }
+
+  .btn-secondary {
+    @apply bg-dark-300 text-gray-100 hover:bg-dark-400;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .card {
+    @apply bg-dark-100 border border-dark-300 rounded-xl p-6;
+  }
+
+  .input {
+    @apply w-full bg-dark-200 border border-dark-300 rounded-lg px-4 py-2.5 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-tech-cyan focus:ring-1 focus:ring-tech-cyan transition-colors;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-300 mb-1.5;
+  }
+
+  .table-container {
+    @apply overflow-x-auto;
+  }
+
+  .data-table {
+    @apply w-full text-sm text-left;
+  }
+
+  .data-table thead {
+    @apply bg-dark-200 text-gray-400 uppercase text-xs;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 font-medium;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 border-t border-dark-300;
+  }
+
+  .data-table tbody tr:hover {
+    @apply bg-dark-200/50;
+  }
+}

@@ -1,0 +1,18 @@
+app:
+  name: xun-web
+  env: development
+  host: localhost
+  port: 8080
+
+database:
+  driver: sqlite
+  path: ./xun-web.db
+  max_open_conns: 1
+
+session:
+  secret: change-me-in-production
+  max_age: 604800  # 7 days in seconds
+
+assets:
+  css: /public/assets/app.css
+  js: /public/assets/app.js
