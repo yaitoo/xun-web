@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 
+	"strings"
+
 	"github.com/yaitoo/sqle/migrate"
 	"github.com/yaitoo/xun"
 	"github.com/yaitoo/xun/ext/htmx"
@@ -31,6 +33,9 @@ func main() {
 		xun.WithWatch(),
 		xun.WithHandlerViewers(&xun.JsonViewer{}),
 		xun.WithInterceptor(htmx.New()),
+		xun.WithBuildAssetURL(func(path string) bool {
+			return strings.HasPrefix(path, "/assets/")
+		}),
 	)
 
 	var err error
