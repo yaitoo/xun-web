@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/yaitoo/xun"
+	"github.com/yaitoo/xun/ext/cookie"
 	"github.com/yaitoo/xun/ext/htmx"
 )
 
@@ -157,14 +158,10 @@ func handleRegister(c *xun.Context) error {
 
 func handleLogout(c *xun.Context) error {
 	c.Set("session", nil)
-	// Clear the session cookie
-	http.SetCookie(c.Response, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   false,
-		MaxAge:   -1, // Expire immediately
+	// Clear the signed session cookie
+	cookie.Delete(c, http.Cookie{
+		Name: sessionCookieName,
+		Path: "/",
 	})
 	if isHTMX(c) {
 		c.WriteHeader(htmx.HxRedirect, "/")

@@ -19,6 +19,8 @@ import (
 //go:embed app
 var fsys embed.FS
 
+var sessionSecret = os.Getenv("SESSION_SECRET")
+
 var (
 	flagConfig  = flag.String("config", "app.yml", "config file path")
 	flagMigrate = flag.Bool("migrate", false, "run migrations and exit")
@@ -45,6 +47,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
+
+	if sessionSecret == "" {
+		sessionSecret = "change-me-in-production"
+	}
 
 	// Run migrations if requested
 	if *flagMigrate {
