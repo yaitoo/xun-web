@@ -1,0 +1,10 @@
+---
+- name: reload systemd
+  become: true
+  ansible.builtin.command: systemctl daemon-reload
+
+- name: reload rustfs
+  become: true
+  ansible.builtin.service:
+    name: rustfs
+    state: restarted

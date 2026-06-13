@@ -1,0 +1,6 @@
+---
+- name: Deploy RustFS S3 Compatible Storage
+  hosts: s3
+  become: true
+  roles:
+    - role: rustfs

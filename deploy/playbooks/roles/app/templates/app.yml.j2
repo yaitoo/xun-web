@@ -1,0 +1,35 @@
+{# Deploy template for /usr/local/starter/app.yml.
+ #
+ # Every value comes from an environment variable so the same template
+ # works across environments. The recommended setup is to drop a `.env`
+ # next to the playbook and source it before running ansible, e.g.:
+ #
+ #   set -a; . deploy/playbooks/roles/app/files/.env.example
+ #       || . .env; set +a
+ #   ansible-playbook deploy/playbooks/app.yml
+ #
+ # Secrets (notably APP_SESSION_SECRET and the TLS material) MUST be
+ # supplied at deploy time — there are no in-template defaults for
+ # them. The values shipped here are intentionally non-secret and
+ # match the local-development defaults in cmd/app/app.yml.        #}
+
+addr:
+  http: "{{ lookup('env', 'APP_HTTP_ADDR') | default(':80', true) }}"
+  https: "{{ lookup('env', 'APP_HTTPS_ADDR') | default(':443', true) }}"
+
+tls:
+  enabled: {{ lookup('env', 'APP_TLS_ENABLED') | default('false', true) | bool | string | lower }}
+  cert_file: {{ lookup('env', 'APP_TLS_CERT_FILE') | default('./certs/server.crt', true) }}
+  key_file: {{ lookup('env', 'APP_TLS_KEY_FILE') | default('./certs/server.key', true) }}
+
+
+db:
+  dsn: {{ lookup('env', 'APP_DB_DSN') | default('./app.db', true) }}
+
+session:
+  secret: {{ lookup('env', 'APP_SESSION_SECRET') }}
+  max_age: {{ lookup('env', 'APP_SESSION_MAX_AGE') | default('604800', true) }}
+
+assets:
+  css: /public/assets/app.css
+  js: /public/assets/app.js

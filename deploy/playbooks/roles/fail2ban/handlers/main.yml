@@ -1,0 +1,23 @@
+---
+# Handler to handle common notifications. Handlers are called by other plays.
+# See http://docs.ansible.com/playbooks_intro.html for more information about handlers.
+
+- name: restart fail2ban
+  service:
+    name: fail2ban
+    state: restarted
+
+- name: reload nf_conntrack
+  shell: |
+    if lsmod | grep -q '^nf_conntrack '; then
+      modprobe -r nf_conntrack && modprobe nf_conntrack
+    else
+      modprobe nf_conntrack
+    fi
+  register: module_reload
+  ignore_errors: true  # 避免模块依赖导致的失败中断流程
+
+- name: restart sshd
+  service:
+    name: sshd
+    state: restarted

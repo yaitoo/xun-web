@@ -1,0 +1,11 @@
+---
+
+- name: Setup Server
+  hosts: 
+    - direct
+  become: true
+  environment:
+    ansible_ssh_common_args: "-o ServerAliveInterval=60"
+
+  roles:
+    - fail2ban

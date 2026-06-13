@@ -1,0 +1,300 @@
+---
+# This playbook contains common plays that will be run on all nodes.
+
+- name: Create yaitoo user if it does not exist
+  user:
+    name: yaitoo
+    state: present
+    createhome: yes
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+  become: true
+
+- name: Configure yaitoo user for password-less sudo
+  lineinfile:
+    path: /etc/sudoers.d/yaitoo
+    line: 'yaitoo ALL=(ALL) NOPASSWD:ALL'
+    create: yes
+    mode: 0440
+    validate: 'visudo -cf %s'
+  become: true
+
+- name: Add local public key to yaitoo authorized_keys
+  authorized_key:
+    user: yaitoo
+    state: present
+    key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
+  become: true
+
+- name: Update and upgrade apt packages
+  become: true
+  apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 86400 #One day
+  when: ansible_os_family == 'Debian'
+
+- name: Install UFW if not installed
+  apt:
+    name: ufw
+    state: present
+  become: true
+  when: ansible_os_family == 'Debian'
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+  become: true
+  when: ansible_os_family == 'Debian'
+
+- name: Allow SSH through UFW
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+  become: true
+  when: ansible_os_family == 'Debian'
+
+- name: Install python3-systemd
+  apt:
+    name: python3-systemd
+  become: true
+
+
+- name: Install fail2ban
+  apt:
+    name: fail2ban
+    state: present
+  # when: ansible_os_family == 'Debian'
+  become: true
+
+
+- name: Configure fail2ban
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart fail2ban
+
+
+- name: Enable fail2ban service
+  service:
+    name: fail2ban
+    enabled: true
+  become: true
+
+
+# fs.file-max = 2097152
+# net.ipv4.tcp_tw_recycle = 1  # 注意：此选项在较新的内核版本中已被弃用，建议使用 tcp_tw_reuse
+# net.ipv4.tcp_tw_reuse = 1
+# net.ipv4.ip_local_port_range = 1024 65535
+
+# https://stackoverflow.com/questions/3757289/when-is-tcp-option-so-linger-0-required
+# net.netfilter.nf_conntrack_max = 524288
+# net.netfilter.nf_conntrack_hashsize = 262144  #增加哈希表的桶数量可以帮助提高查找效率，减少冲突，进而提升性能。这个参数的值是桶的数量，通常建议设置为 nf_conntrack_max 的一半左右。
+# net.netfilter.nf_conntrack_tcp_timeout_established = 86400  # 默认为一天，可根据需要调整
+# net.netfilter.nf_conntrack_tcp_timeout_time_wait = 60       # 缩短 TIME_WAIT 状态的时间
+# net.netfilter.nf_conntrack_tcp_timeout_close_wait = 30      # 缩短 CLOSE_WAIT 状态的时间
+# net.netfilter.nf_conntrack_tcp_timeout_fin_wait = 60       # 缩短 FIN_WAIT 状态的时间
+
+
+# Set sysctl and reload if necessary
+- name: file-max
+  sysctl:
+    name: fs.file-max
+    value: 2097152
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+# - name: tcp_tw_recycle
+#   ignore_errors: true
+#   sysctl:
+#     name: net.ipv4.tcp_tw_recycle
+#     value: 1
+#     sysctl_set: yes
+#     state: present
+#     reload: yes
+
+- name: tcp_tw_reuse
+  ignore_errors: true
+  sysctl:
+    name: net.ipv4.tcp_tw_reuse
+    value: 1
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: ip_local_port_range
+  sysctl:
+    name: net.ipv4.ip_local_port_range
+    value: 1024 65535
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: Ensure nf_conntrack module is loaded
+  modprobe:
+    name: nf_conntrack
+    state: present
+
+- name: Set hashsize via modprobe config
+  copy:
+    content: "options nf_conntrack hashsize=262144"
+    dest: /etc/modprobe.d/nf_conntrack.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: reload nf_conntrack
+
+- name: nf_conntrack_max
+  ignore_errors: true
+  sysctl:
+    name: net.netfilter.nf_conntrack_max
+    value: 524288
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: nf_conntrack_tcp_timeout_close_wait
+  sysctl:
+    name: net.netfilter.nf_conntrack_tcp_timeout_close_wait
+    value: 60
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: nf_conntrack_tcp_timeout_fin_wait
+  sysctl:
+    name: net.netfilter.nf_conntrack_tcp_timeout_fin_wait
+    value: 30
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: nf_conntrack_tcp_timeout_time_wait
+  sysctl:
+    name: net.netfilter.nf_conntrack_tcp_timeout_time_wait 
+    value: 60
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+# Configure swap - Create 4GB swap and prioritize physical memory
+- name: Check if /swapfile swap is active
+  shell: swapon --show | grep -q '/swapfile'
+  register: swap_active
+  failed_when: false
+  changed_when: false
+
+- name: Disable swap if it already exists
+  command: swapoff /swapfile
+  become: true
+  when: swap_active.rc == 0
+
+- name: Remove existing swap file if size differs
+  file:
+    path: /swapfile
+    state: absent
+  become: true
+  ignore_errors: true
+
+- name: Create swap file (4GB)
+  command: |
+    dd if=/dev/zero of=/swapfile bs=1G count=4
+  args:
+    creates: /swapfile
+  become: true
+
+- name: Set swap file permissions
+  file:
+    path: /swapfile
+    mode: 0600
+  become: true
+
+- name: Format swap file
+  command: mkswap /swapfile
+  become: true
+
+- name: Enable swap
+  command: swapon /swapfile
+  become: true
+
+- name: Make swap persistent in fstab
+  lineinfile:
+    path: /etc/fstab
+    line: '/swapfile none swap sw 0 0'
+    state: present
+  become: true
+
+- name: Set vm.swappiness to prioritize physical memory
+  sysctl:
+    name: vm.swappiness
+    value: 90
+    sysctl_set: yes
+    state: present
+    reload: yes
+  become: true
+
+- name: Set vm.vfs_cache_pressure to reduce cache pressure
+  sysctl:
+    name: vm.vfs_cache_pressure
+    value: 50
+    sysctl_set: yes
+    state: present
+    reload: yes
+  become: true
+
+# Configure SSH - Disable password authentication, allow only key-based login
+- name: Update SSH config to disable password authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+    state: present
+    backup: yes
+  become: true
+  notify: restart sshd
+
+- name: Update SSH config to enable public key authentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PubkeyAuthentication'
+    line: 'PubkeyAuthentication yes'
+    state: present
+  become: true
+  notify: restart sshd
+
+# - name: Update SSH config to disable root login
+#   lineinfile:
+#     path: /etc/ssh/sshd_config
+#     regexp: '^#?PermitRootLogin'
+#     line: 'PermitRootLogin no'
+#     state: present
+#   become: true
+#   notify: restart sshd
+
+- name: Update SSH config to disable empty password
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitEmptyPasswords'
+    line: 'PermitEmptyPasswords no'
+    state: present
+  become: true
+  notify: restart sshd
+
+# - name: UFW allow
+#   become: true
+#   ufw:
+#     rule: allow
+#     port: "{{ item }}"
+#     proto: tcp
+#   loop:
+#     - 80
+#     - 443
+#     - 8000
+#     - 18080
+#     - 11080

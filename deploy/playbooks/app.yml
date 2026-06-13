@@ -1,0 +1,10 @@
+---
+
+- name: Install starter
+  hosts: app
+  become: true
+  environment:
+    ansible_ssh_common_args: "-o ServerAliveInterval=60"
+
+  roles:
+    - app
