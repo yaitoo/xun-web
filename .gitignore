@@ -52,3 +52,9 @@ node_modules/
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# macOS Finder metadata
+.DS_Store
+# vim swap files
+*.swp
+*.swo
