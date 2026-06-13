@@ -1,13 +1,16 @@
-app:
-  name: xun-web
-  env: development
-  host: localhost
-  port: 8080
+addr:
+  http: ":80"
+  https: ":443"
 
-database:
-  driver: sqlite
-  path: ./xun-web.db
-  max_open_conns: 1
+tls:
+  enabled: false
+  cert_file: ./certs/server.crt
+  key_file: ./certs/server.key
+
+
+
+db:
+  dsn: ./app.db
 
 session:
   secret: change-me-in-production

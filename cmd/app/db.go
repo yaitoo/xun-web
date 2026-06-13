@@ -1,40 +1,51 @@
 package main
 
 import (
-	"database/sql"
+	"context"
+	"embed"
 	"fmt"
-	"os"
-	"path/filepath"
-	"time"
 
+	"github.com/cnlangzi/sqlite"
+	"github.com/spf13/viper"
 	"github.com/yaitoo/sqle"
+	"github.com/yaitoo/sqle/migrate"
 )
 
+//go:embed migrations
+var migrations embed.FS
+
 // Global database handle
-var db *sqle.DB
+var db *sqlite.DB
 
-func initDB() (*sqle.DB, error) {
-	dbPath := "./xun-web.db"
+func setupSQLite(ctx context.Context) (*sqlite.DB, error) {
+	dsn := viper.GetString("db.dsn")
 
-	// Create directory if not exists
-	dir := filepath.Dir(dbPath)
-	if dir != "." && dir != "" {
-		if err := os.MkdirAll(dir, 0755); err != nil && !os.IsExist(err) {
-			return nil, fmt.Errorf("failed to create db directory: %w", err)
-		}
-	}
-
-	sqlDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	db, err := sqlite.New(ctx, dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open db: %w", err)
+		return nil, fmt.Errorf("failed to create db: %w", err)
 	}
 
-	sqlDB.SetMaxOpenConns(1) // SQLite recommended setting
-	sqlDB.SetConnMaxLifetime(time.Hour)
-
-	if err := sqlDB.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping db: %w", err)
+	if err := migrateSQLite(ctx); err != nil {
+		return nil, fmt.Errorf("failed to migrate db: %w", err)
 	}
 
-	return sqle.Open(sqlDB), nil
+	return db, nil
+}
+
+func migrateSQLite(ctx context.Context) error {
+	d := sqle.Open(db.Writer.DB)
+	migrator := migrate.New(d)
+	if err := migrator.Discover(migrations); err != nil {
+		return fmt.Errorf("failed to discover migrations: %w", err)
+	}
+
+	if err := migrator.Init(ctx); err != nil {
+		return fmt.Errorf("failed to init migrations: %w", err)
+	}
+
+	if err := migrator.Migrate(ctx); err != nil {
+		return fmt.Errorf("failed to migrate db: %w", err)
+	}
+
+	return nil
 }
