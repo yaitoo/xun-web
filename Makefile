@@ -26,7 +26,7 @@ ESBUILD_VERSION  := 0.28.0
 
 # CSS / JS source → output paths. The output is served by the running app
 # from cmd/app/app/public/assets/ (embedded via //go:embed in main.go).
-TAILWIND_INPUT  := cmd/app/tailwind.css
+TAILWIND_INPUT  := tailwind.css
 TAILWIND_OUTPUT := cmd/app/app/public/assets/app.css
 TAILWIND_CONFIG := cmd/app/app/tailwind.config.js
 ESBUILD_INPUT   := cmd/app/app/public/assets/app.js
@@ -122,13 +122,17 @@ watch: download-ui-tools
 	bin/tailwindcss -c $(TAILWIND_CONFIG) -i $(TAILWIND_INPUT) -o $(TAILWIND_OUTPUT) --watch
 
 # Development: watch Tailwind in the background and start the Go app.
+# `go run ./cmd/app` (directory form) is required — see the `run` target.
 dev: download-ui-tools
 	@bin/tailwindcss -c $(TAILWIND_CONFIG) -i $(TAILWIND_INPUT) -o $(TAILWIND_OUTPUT) --watch & \
-	  go run cmd/app/main.go
+	  go run ./cmd/app
 
 # Run the application (assumes `make build-ui` has been run at least once).
+# `go run ./cmd/app` (directory form) compiles the whole `package main`,
+# not just main.go — `go run FILE` is file mode and would miss sibling
+# sources like db.go, routes.go, middleware.go.
 run:
-	go run cmd/app/main.go
+	go run ./cmd/app
 
 # Remove the downloaded CLI binaries and the generated UI assets. Leaves
 # the .gitignored ./bin/ folder in place.

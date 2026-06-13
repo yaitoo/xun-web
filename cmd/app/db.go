@@ -20,7 +20,12 @@ var db *sqlite.DB
 func setupSQLite(ctx context.Context) (*sqlite.DB, error) {
 	dsn := viper.GetString("db.dsn")
 
-	db, err := sqlite.New(ctx, dsn)
+	// Assign to the package-level handle so migrateSQLite (which closes
+	// over `db`) sees the same instance. Using `=` rather than `:=` here
+	// is intentional — `:=` would create a local var that shadows the
+	// global and leave migrateSQLite reading a nil pointer.
+	var err error
+	db, err = sqlite.New(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create db: %w", err)
 	}

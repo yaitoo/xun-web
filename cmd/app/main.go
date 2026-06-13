@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -238,11 +239,25 @@ func loadConfig() error {
 	flag.StringVar(&conf, "conf", "app.yml", "config file")
 	flag.Parse()
 
-	if strings.Contains(conf, ".") {
+	// Search paths, in priority order:
+	//   1. -conf flag value (if it contains a path separator, e.g. "conf/app.yml")
+	//   2. The directory of the running binary (production: ./bin/app looks for ./bin/app.yml)
+	//   3. The source-relative cmd/app/ directory (development: `go run ./cmd/app` from repo root)
+	//   4. The current working directory (fallback: `go run ./cmd/app` from inside cmd/app/)
+	if strings.Contains(conf, "/") || strings.Contains(conf, string(os.PathSeparator)) {
 		viper.SetConfigFile(conf)
 	} else {
 		viper.SetConfigName(conf)
 		viper.SetConfigType("yml")
+
+		if exe, err := os.Executable(); err == nil {
+			viper.AddConfigPath(filepath.Dir(exe))
+		}
+		// Source-relative: this file is cmd/app/main.go, so the config
+		// ships next to it. Only meaningful in dev (the directory won't
+		// exist at runtime when the binary is in ./bin/), so viper will
+		// just skip it silently if absent.
+		viper.AddConfigPath("cmd/app")
 		viper.AddConfigPath(".")
 	}
 
