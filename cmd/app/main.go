@@ -6,6 +6,7 @@ import (
 	"embed"
 	"errors"
 	"flag"
+	"fmt"
 	"io/fs"
 	"log"
 	"log/slog"
@@ -133,8 +134,17 @@ func runServers(handler http.Handler) error {
 		slog.Info("starting https server", "addr", httpsAddr, "cert", certFile, "key", keyFile)
 	}
 
-	// Channel to capture listener errors.
-	errCh := make(chan error, len(servers))
+	// Two channels so we can distinguish fatal bind errors (which must
+	// surface a non-zero exit code immediately) from graceful shutdowns
+	// (which must drain in-flight requests and exit 0).
+	//
+	//   bindErrCh: receives the FIRST listener that fails to bind. The
+	//              caller treats any value sent here as fatal.
+	//   doneCh:    receives nil from each listener goroutine after it
+	//              exits, so the shutdown path can wait for all
+	//              goroutines to actually return.
+	bindErrCh := make(chan error, len(servers))
+	doneCh := make(chan struct{}, len(servers))
 
 	for name, srv := range servers {
 		go func(name string, srv *http.Server) {
@@ -144,25 +154,38 @@ func runServers(handler http.Handler) error {
 			} else {
 				err = srv.ListenAndServe()
 			}
-			// http.ErrServerClosed is expected during graceful shutdown.
+			// http.ErrServerClosed is the expected result of
+			// srv.Shutdown — it's not an error.
 			if errors.Is(err, http.ErrServerClosed) {
 				err = nil
 			}
-			errCh <- err
+			if err != nil {
+				// Bind failure (e.g. "address already in use") or any
+				// other listener error. Surface it as fatal.
+				bindErrCh <- fmt.Errorf("%s: %w", name, err)
+			}
+			doneCh <- struct{}{}
 		}(name, srv)
 	}
 
-	// Wait for SIGINT/SIGTERM or a listener error.
+	// Wait for SIGINT/SIGTERM or a fatal bind error.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
 	case sig := <-sigCh:
 		slog.Info("received signal, shutting down", "signal", sig.String())
-	case err := <-errCh:
-		if err != nil {
-			slog.Error("listener error, shutting down", "err", err)
-		}
+	case err := <-bindErrCh:
+		// Bind failure (or any other listener error). Log it, then
+		// bail out immediately with a non-zero exit code. We do NOT
+		// call Shutdown on the other listeners — they may have
+		// bound successfully and are serving real traffic, and a
+		// bind failure on one shouldn't be hidden behind a clean
+		// exit. systemd / docker / k8s will see the non-zero exit
+		// and restart the process.
+		slog.Error("listener failed to start, exiting", "err", err)
+		signal.Stop(sigCh)
+		os.Exit(1)
 	}
 
 	// Stop receiving further signals and start graceful shutdown.
@@ -178,12 +201,12 @@ func runServers(handler http.Handler) error {
 		}
 	}
 
-	// Drain any remaining listener errors so goroutines exit cleanly.
+	// Drain doneCh so all listener goroutines exit before we return.
+	// We don't care about any late bindErrCh values here: by the time
+	// we got here, the only way into shutdown was via a signal, so a
+	// subsequent listener error after Shutdown is benign.
 	for i := 0; i < len(servers); i++ {
-		if err := <-errCh; err != nil {
-			slog.Error("listener error", "err", err)
-			return err
-		}
+		<-doneCh
 	}
 
 	return nil
@@ -260,6 +283,17 @@ func loadConfig() error {
 		viper.AddConfigPath("cmd/app")
 		viper.AddConfigPath(".")
 	}
+
+	// Environment-variable override layer. The Makefile sources `.env`
+	// before launching the app, so secrets and per-developer overrides
+	// land here. Mapping rule: APP_<SECTION>_<KEY> → <section>.<key>,
+	// so APP_SESSION_SECRET overrides session.secret, APP_DB_DSN
+	// overrides db.dsn, etc. Viper's default precedence (env > config
+	// file > default) means .env wins over the YAML file but the YAML
+	// file still provides the non-overridden base values.
+	viper.SetEnvPrefix("APP")
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// Load config
 	err := viper.ReadInConfig()

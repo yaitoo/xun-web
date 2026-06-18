@@ -1,4 +1,50 @@
-.PHONY: install dev build build-ui build-dist watch clean run fmt tidy download-ui-tools
+.PHONY: install dev build build-ui build-dist watch clean run fmt tidy download-ui-tools require-env env-show
+
+# ── .env auto-loading ────────────────────────────────────────────────────────
+# `.env` is git-ignored; `.env.example` is the tracked template. The app
+# reads every APP_* env var via viper.AutomaticEnv() (see cmd/app/main.go
+# loadConfig), so a single `.env` is the place to keep secrets and per-
+# developer overrides.
+#
+# Two layers of integration:
+#
+#   (a) `include $(ENV_FILE)` + bare `export` — make parses `.env`, so
+#       `$(APP_SESSION_SECRET)` works in any recipe line below. (We
+#       don't currently use it, but it keeps `.env` discoverable via
+#       `make -p` and lets a future recipe reference any var directly.)
+#
+#   (b) `$(ENV_LOAD)` — prepended to recipes that run the app, sources
+#       `.env` in a subshell with `set -a` so every var is auto-exported
+#       into the spawned `go run` / ansible-playbook process. The Go app
+#       then picks them up via its own viper.AutomaticEnv() layer.
+#
+# Already-exported shell vars win over `.env` (make's `include`
+# semantics: env-vars override vars set in the included file).
+ENV_FILE := .env
+ifeq ($(wildcard $(ENV_FILE)),)
+ENV_LOAD :=
+else
+# `$(CURDIR)/$(ENV_FILE)` (not bare `./.env`) so POSIX `.` resolves it
+# as a path instead of searching $PATH, and so the source still works
+# after a recipe's `cd ...` (e.g. `cd deploy/playbooks`).
+ENV_LOAD := set -a; . $(CURDIR)/$(ENV_FILE); set +a;
+include $(ENV_FILE)
+export
+endif
+
+# Fail-loud guard for targets that need $(ENV_FILE) to be present.
+# Used as a prerequisite by every target that consumes $(ENV_LOAD) so
+# the error wording and exit behaviour stay consistent.
+require-env:
+	@if [ ! -f $(ENV_FILE) ]; then \
+		echo "  ! $(ENV_FILE) not found — copy .env.example to .env first" >&2; \
+		exit 1; \
+	fi
+
+# Print the effective vars loaded from .env (debug aid).
+env-show: require-env
+	@echo "Loaded from $(ENV_FILE):"
+	@grep -vE '^[[:space:]]*(#|$$)' $(ENV_FILE) | sed 's/^/  /'
 
 # ── Go production build settings ──────────────────────────────────────────
 # Identity injected into the binary via -ldflags -X. main.go declares
@@ -123,16 +169,18 @@ watch: download-ui-tools
 
 # Development: watch Tailwind in the background and start the Go app.
 # `go run ./cmd/app` (directory form) is required — see the `run` target.
-dev: download-ui-tools
+# `$(ENV_LOAD)` sources .env so APP_* vars reach the go process.
+dev: download-ui-tools require-env
 	@bin/tailwindcss -c $(TAILWIND_CONFIG) -i $(TAILWIND_INPUT) -o $(TAILWIND_OUTPUT) --watch & \
-	  go run ./cmd/app
+	  $(ENV_LOAD) go run ./cmd/app
 
 # Run the application (assumes `make build-ui` has been run at least once).
 # `go run ./cmd/app` (directory form) compiles the whole `package main`,
 # not just main.go — `go run FILE` is file mode and would miss sibling
 # sources like db.go, routes.go, middleware.go.
-run:
-	go run ./cmd/app
+# `$(ENV_LOAD)` sources .env so APP_* vars reach the go process.
+run: require-env
+	$(ENV_LOAD) go run ./cmd/app
 
 # Remove the downloaded CLI binaries and the generated UI assets. Leaves
 # the .gitignored ./bin/ folder in place.
@@ -154,7 +202,7 @@ tidy:
 # local `build` target) so the two never overwrite each other.
 build-dist:
 	@mkdir -p dist
-	./build/dist.sh
+	$(ENV_LOAD) ./build/dist.sh
 
 # Convenience: fetch the UI tools without building anything.
 install: download-ui-tools
