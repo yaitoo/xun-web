@@ -1,0 +1,18 @@
+---
+
+- name: reload systemd
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: restart starter
+  become: true
+  ansible.builtin.systemd_service:
+    state: restarted
+    name: starter
+
+- name: reload starter
+  become: true
+  ansible.builtin.systemd_service:
+    state: reloaded
+    name: starter

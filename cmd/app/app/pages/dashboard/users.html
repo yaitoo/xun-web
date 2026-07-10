@@ -1,0 +1,88 @@
+<!--layout:dashboard-->
+{{define "content"}}
+<div class="mb-8 flex items-center justify-between">
+  <div>
+    <h1 class="text-3xl font-bold mb-2">User Management</h1>
+    <p class="text-gray-400">Manage your application users</p>
+  </div>
+  <button
+    class="btn btn-primary"
+    hx-get="/dashboard/views/users/form"
+    hx-target="#user-form-container"
+    hx-swap="innerHTML"
+  >
+    Add User
+  </button>
+</div>
+
+<!-- User Form Container (for inline create/edit) -->
+<div id="user-form-container" class="mb-6"></div>
+
+<!-- Users Table -->
+<div class="card">
+  <div id="users-list" hx-get="/dashboard/views/users/list" hx-trigger="reloadUsers from:body">
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Created</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-list-body">
+          {{range .Data}}
+          <tr id="user-row-{{.ID}}">
+            <td class="font-mono text-gray-400">#{{.ID}}</td>
+            <td>{{.Name}}</td>
+            <td>{{.Email}}</td>
+            <td>{{.CreatedAt.Format "2006-01-02"}}</td>
+            <td class="text-right">
+              <div class="flex items-center justify-end gap-2">
+                <a
+                  href="/dashboard/users/{{.ID}}"
+                  class="btn btn-secondary py-1.5 px-3 text-sm"
+                >
+                  View
+                </a>
+                <button
+                  class="btn btn-secondary py-1.5 px-3 text-sm"
+                  hx-get="/dashboard/views/users/edit/{{.ID}}"
+                  hx-target="#user-form-container"
+                  hx-swap="innerHTML"
+                >
+                  Edit
+                </button>
+                <button
+                  class="btn btn-danger py-1.5 px-3 text-sm"
+                  hx-delete="/dashboard/users/{{.ID}}"
+                  hx-target="#user-row-{{.ID}}"
+                  hx-swap="delete"
+                  hx-confirm="Are you sure you want to delete this user?"
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+          {{else}}
+          <tr>
+            <td colspan="5" class="text-center py-8 text-gray-400">
+              No users found. Create your first user above.
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.body.addEventListener('userFormSuccess', function() {
+    htmx.trigger('#users-list', 'reloadUsers');
+  });
+</script>
+{{end}}

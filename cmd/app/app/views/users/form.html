@@ -1,0 +1,39 @@
+<div class="card mb-6 border-tech-cyan">
+  <h3 class="text-lg font-semibold mb-4">Create New User</h3>
+  
+  <form 
+    hx-post="/dashboard/users" 
+    hx-target="#users-list"
+    hx-swap="innerHTML"
+    hx-on:htmx:after-request="if(event.detail.successful) document.body.dispatchEvent(new CustomEvent('userFormSuccess'))"
+    class="space-y-4"
+  >
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="label">Name</label>
+        <input type="text" name="name" class="input" placeholder="John Doe" required>
+      </div>
+      <div>
+        <label class="label">Email</label>
+        <input type="email" name="email" class="input" placeholder="john@example.com" required>
+      </div>
+    </div>
+    <div>
+      <label class="label">Password</label>
+      <input type="password" name="password" class="input" placeholder="Minimum 6 characters" minlength="6" required>
+    </div>
+    
+    <div class="flex items-center gap-3 pt-2">
+      <button type="submit" class="btn btn-primary">Create User</button>
+      <button 
+        type="button" 
+        class="btn btn-secondary"
+        hx-get="/dashboard/views/users/empty"
+        hx-target="#user-form-container"
+        hx-swap="innerHTML"
+      >
+        Cancel
+      </button>
+    </div>
+  </form>
+</div>

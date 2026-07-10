@@ -1,0 +1,64 @@
+---
+
+- name: Create starter user
+  become: true
+  user:
+    name: starter
+    system: yes
+    shell: /usr/sbin/nologin
+    home: /usr/local/starter
+    create_home: no
+    comment: "Starter Service User"
+
+- name: Create workdir
+  become: true
+  file:
+    path: /usr/local/starter/
+    state: directory
+    owner: starter
+    group: starter
+    mode: 0755
+
+- name: Install starter.yml
+  become: true
+  template:
+    src: app.yml.j2
+    dest: /usr/local/starter/app.yml
+    owner: starter
+    group: starter
+    mode: 0644
+  notify: restart starter
+
+- name: Install starter
+  become: true
+  copy:
+    src: app
+    dest: /usr/local/starter/app
+    owner: starter
+    group: starter
+    mode: 0755
+  notify: reload starter
+
+- name: Install reload service
+  become: true
+  copy:
+    src: app.service
+    dest: /etc/systemd/system/starter.service
+  notify: 
+    - reload systemd
+    - reload starter
+
+- name: Enable starter service
+  ansible.builtin.systemd_service:
+    name: starter
+    enabled: true
+    masked: no
+
+- name: ufw allow
+  become: true
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - 9084

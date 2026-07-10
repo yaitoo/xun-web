@@ -1,0 +1,50 @@
+<div class="table-container">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Created</th>
+        <th class="text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="users-list-body">
+      {{range .Data}}
+      <tr id="user-row-{{.ID}}">
+        <td class="font-mono text-gray-400">#{{.ID}}</td>
+        <td>{{.Name}}</td>
+        <td>{{.Email}}</td>
+        <td>{{.CreatedAt.Format "2006-01-02"}}</td>
+        <td class="text-right">
+          <div class="flex items-center justify-end gap-2">
+            <button
+              class="btn btn-secondary py-1.5 px-3 text-sm"
+              hx-get="/dashboard/views/users/edit/{{.ID}}"
+              hx-target="#user-form-container"
+              hx-swap="innerHTML"
+            >
+              Edit
+            </button>
+            <button
+              class="btn btn-danger py-1.5 px-3 text-sm"
+              hx-delete="/dashboard/users/{{.ID}}"
+              hx-target="#user-row-{{.ID}}"
+              hx-swap="delete"
+              hx-confirm="Are you sure you want to delete this user?"
+            >
+              Delete
+            </button>
+          </div>
+        </td>
+      </tr>
+      {{else}}
+      <tr>
+        <td colspan="5" class="text-center py-8 text-gray-400">
+          No users found. Create your first user above.
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>

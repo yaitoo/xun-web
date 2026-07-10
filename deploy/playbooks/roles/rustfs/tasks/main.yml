@@ -1,0 +1,77 @@
+---
+- name: Create rustfs user
+  become: true
+  user:
+    name: rustfs
+    system: yes
+    shell: /usr/sbin/nologin
+    home: /usr/local/rustfs
+    create_home: no
+    comment: "RustFS S3 Service User"
+
+- name: Create data and config directories
+  become: true
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: rustfs
+    group: rustfs
+    mode: 0755
+  loop:
+    - /usr/local/rustfs
+    - /var/lib/rustfs
+
+- name: Download rustfs binary
+  become: true
+  get_url:
+    url: https://github.com/rustfs/rustfs/releases/download/v0.6.0/rustfs-v0.6.0-x86_64-unknown-linux-gnu.tar.gz
+    dest: /tmp/rustfs.tar.gz
+    validate_certs: false
+
+- name: Extract rustfs binary
+  become: true
+  unarchive:
+    src: /tmp/rustfs.tar.gz
+    dest: /usr/local/rustfs
+    owner: rustfs
+    group: rustfs
+    mode: 0755
+    remote_src: yes
+
+- name: Remove downloaded archive
+  become: true
+  file:
+    path: /tmp/rustfs.tar.gz
+    state: absent
+
+- name: Install rustfs config
+  become: true
+  template:
+    src: rustfs.yml.j2
+    dest: /usr/local/rustfs/rustfs.yml
+    owner: rustfs
+    group: rustfs
+    mode: 0644
+  notify: restart rustfs
+
+- name: Install rustfs service
+  become: true
+  copy:
+    src: rustfs.service
+    dest: /etc/systemd/system/rustfs.service
+  notify:
+    - reload systemd
+    - reload rustfs
+
+- name: Enable rustfs service
+  ansible.builtin.systemd_service:
+    name: rustfs
+    enabled: true
+    masked: no
+
+- name: ufw allow s3 port
+  become: true
+  ufw:
+    rule: allow
+    port: "9000"
+    proto: tcp

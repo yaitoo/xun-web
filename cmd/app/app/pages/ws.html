@@ -1,0 +1,114 @@
+<!--layout:dashboard-->
+{{define "content"}}
+<div class="mb-8">
+  <h1 class="text-3xl font-bold mb-2">WebSocket Demo</h1>
+  <p class="text-gray-400">
+    Signed in as <span class="text-tech-cyan">{{.TempData.session.Name}}</span>.
+    Messages you send are broadcast to every connected client.
+  </p>
+</div>
+
+<div class="card">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-2">
+      <span id="ws-status-dot" class="w-2 h-2 rounded-full bg-red-500"></span>
+      <span id="ws-status-text" class="text-sm text-gray-400">disconnected</span>
+    </div>
+    <button id="ws-clear" class="btn btn-secondary py-1.5 px-3 text-sm">Clear</button>
+  </div>
+
+  <div id="ws-log"
+       class="bg-dark-200 border border-dark-300 rounded-lg p-4 h-80 overflow-y-auto font-mono text-sm mb-4">
+    <div class="text-gray-500">[log will appear here]</div>
+  </div>
+
+  <form id="ws-form" class="flex items-center gap-2">
+    <input id="ws-input"
+           type="text"
+           autocomplete="off"
+           placeholder="Type a message and press Enter…"
+           class="input flex-1"
+           disabled>
+    <button type="submit" class="btn btn-primary" disabled>Send</button>
+  </form>
+
+  <p class="text-xs text-gray-500 mt-3">
+    Endpoint: <code class="text-tech-cyan">ws(s)://&lt;host&gt;/api/ws</code>
+    (registered via <code class="text-tech-cyan">app.Mux()</code>;
+    the raw <code class="text-tech-cyan">http.ResponseWriter</code> is required for the upgrade handshake).
+  </p>
+</div>
+
+<script>
+(() => {
+  const log = document.getElementById('ws-log');
+  const input = document.getElementById('ws-input');
+  const form = document.getElementById('ws-form');
+  const clearBtn = document.getElementById('ws-clear');
+  const dot = document.getElementById('ws-status-dot');
+  const status = document.getElementById('ws-status-text');
+
+  function setStatus(state, text) {
+    dot.className = 'w-2 h-2 rounded-full ' + (
+      state === 'open'    ? 'bg-tech-green' :
+      state === 'connecting' ? 'bg-tech-amber' :
+      'bg-red-500'
+    );
+    status.textContent = text;
+  }
+
+  function appendLine(text, cls) {
+    const line = document.createElement('div');
+    line.textContent = text;
+    if (cls) line.className = cls;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // The browser will include the signed session cookie automatically,
+  // because the page is served from the same origin (and cookies are
+  // scoped to path "/" by sessionMiddleware). The server validates it
+  // in wsAuthOK.
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = proto + '//' + location.host + '/api/ws';
+
+  setStatus('connecting', 'connecting…');
+  const ws = new WebSocket(url);
+
+  ws.addEventListener('open', () => {
+    setStatus('open', 'connected');
+    input.disabled = false;
+    form.querySelector('button').disabled = false;
+    input.focus();
+    appendLine('— connected —', 'text-gray-500');
+  });
+
+  ws.addEventListener('message', (ev) => {
+    appendLine(ev.data, 'text-gray-100');
+  });
+
+  ws.addEventListener('close', () => {
+    setStatus('closed', 'disconnected');
+    input.disabled = true;
+    form.querySelector('button').disabled = true;
+    appendLine('— disconnected —', 'text-gray-500');
+  });
+
+  ws.addEventListener('error', () => {
+    appendLine('— connection error —', 'text-red-400');
+  });
+
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const text = input.value.trim();
+    if (!text || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(text);
+    input.value = '';
+  });
+
+  clearBtn.addEventListener('click', () => {
+    log.innerHTML = '';
+  });
+})();
+</script>
+{{end}}

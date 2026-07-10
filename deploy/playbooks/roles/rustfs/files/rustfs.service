@@ -1,0 +1,15 @@
+[Unit]
+Description=RustFS S3 Compatible Storage Service
+After=network.target
+
+[Service]
+Type=simple
+User=rustfs
+Group=rustfs
+WorkingDirectory=/usr/local/rustfs
+ExecStart=/usr/local/rustfs/rustfs --config /usr/local/rustfs/rustfs.yml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

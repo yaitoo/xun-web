@@ -1,0 +1,36 @@
+[cmd]
+; mux-ub-us ansible_host=149.248.20.235 ansible_user=yaitoo proxy_ifcfg_host=ifcfg-us.yaitoo.cn ifcfg_test_http="http://ifcfg-us.yaitoo.cn:9080" ifcfg_test_https="https://ifcfg-us.yaitoo.cn:9440" ifcfg_threads=2500 google=true proxy=false proxy_proxy_host=proxy.yaitoo.cn ngx_code=mux http=":9080" https=":9440"
+; mux-aliyun ansible_host=101.133.151.142 ansible_user=ecs-user proxy_ifcfg_host=ifcfg.yaitoo.cn ifcfg_test_http="http://ifcfg.yaitoo.cn" ifcfg_test_https="https://ifcfg.yaitoo.cn" ifcfg_threads=500 google=false proxy=true proxy_proxy_host=proxy.yaitoo.cn ngx_code= http=":80" https=":443"
+
+[cmd:vars]
+ansible_python_interpreter=auto_silent
+#ansible_ssh_common_args='-o ProxyCommand="nc -v -x 127.0.0.1:1080 %h %p"'
+
+
+
+[direct]
+# mux-ub-us ansible_host=149.248.20.235 ansible_user=yaitoo
+; mux-ny-us ansible_host=198.23.197.75 ansible_user=root
+; sv-us-ten ansible_host=43.162.102.142 ansible_user=yaitoo
+la-us ansible_host=107.175.224.222 ansible_user=root
+
+
+
+[direct:vars]
+ansible_python_interpreter=auto_silent
+
+[gfw]
+# 
+
+[s3]
+# s3-server ansible_host=xxx.xxx.xxx.xxx ansible_user=root
+s3-sv-us ansible_host=43.162.102.142 ansible_user=root
+
+[s3:vars]
+ansible_python_interpreter=auto_silent
+rustfs_port=9000
+rustfs_access_key="@Yaitoo2026@AK"
+rustfs_secret_key="@Yaitoo2026@SK"
+rustfs_log_level="info"
+
+

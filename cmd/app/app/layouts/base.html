@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.TempData.title}} - Xun Web</title>
+  <link rel="stylesheet" href="{{asset "/assets/app.css"}}">
+  <script src="{{asset "/htmx.js"}}"></script>
+</head>
+<body class="min-h-screen flex flex-col">
+  {{block "components/nav" .}}{{end}}
+
+  <main class="flex-1">
+    {{block "content" .}}{{end}}
+  </main>
+
+  {{block "components/footer" .}}{{end}}
+</body>
+</html>
