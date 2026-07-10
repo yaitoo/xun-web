@@ -261,6 +261,59 @@ The page's body MUST be wrapped in `{{define "content"}}...{{end}}` — this is 
 
 The layout file contains the chrome and a `{{block "content" .}}{{end}}` placeholder where the page body is injected. For including shared components (`nav`, `footer`, etc.) use `{{block "components/NAME" .}}{{end}}` — the block name must match the registered template name (path under `components/` without `.html`).
 
+**Block resolution rules:**
+
+| Block name | Must be provided by | Example |
+|------------|---------------------|---------|
+| `content` | Every page via `{{define "content"}}...{{end}}` | Required in all pages |
+| `components/<name>` | File `app/components/<name>.html` | `{{block "components/nav" .}}` → `app/components/nav.html` |
+| Custom optional blocks | **Either** a page `{{define "name"}}` **or** a component file `app/components/<name>.html` | See note below |
+
+**Important naming rule - depends on call site:**
+
+| From → To | Syntax | Example |
+|-----------|--------|---------|
+| **Layout → Component** | `{{block "components/<name>" .}}` | `{{block "components/nav" .}}` |
+| **Page → Definition** | `{{define "content"}}` or `{{define "custom"}}` | Required for every `{{block "content"}}` in layout |
+| **Component → Component** | `{{template "<name>" .}}` | `{{template "user-item" .}}` (no `components/` prefix) |
+
+The same file `app/components/theme-toggle.html` is referenced differently depending on where it's called:
+- From a layout: `{{block "components/theme-toggle" .}}`
+- From another component: `{{template "theme-toggle" .}}`
+
+**Important:** Unlike Go's default `{{block}}` behavior, xun requires that every block referenced in a layout must be backed by either:
+1. A `{{define}}` in the page file, or
+2. A component file in `app/components/`
+
+If a layout contains `{{block "scripts-extra" .}}{{end}}` but no page defines it and no `app/components/scripts-extra.html` exists, you'll get a runtime error: `no such template "scripts-extra"`. 
+
+**Current implementation in this repo:**
+
+All pages in this repo use one of two layouts, and every block referenced has proper backing:
+
+- `layouts/base.html` uses: `components/nav`, `content`, `components/footer`
+- `layouts/dashboard.html` uses: `components/dashboard-nav`, `content`, `components/footer`
+
+All component files exist, and all pages define `{{define "content"}}`. This is the **recommended safe pattern**.
+
+**If you need optional per-page blocks (advanced pattern):**
+```html
+<!-- Layout: layouts/base.html -->
+{{block "head-extra" .}}{{end}}
+
+<!-- Page that uses it: pages/index.html -->
+<!--layout:base-->
+{{define "content"}}...{{end}}
+{{define "head-extra"}}<script>...</script>{{end}}
+
+<!-- Page that doesn't use it: pages/about.html -->
+<!--layout:base-->
+{{define "content"}}...{{end}}
+{{define "head-extra"}}{{end}}  <!-- Must provide empty definition -->
+```
+
+Note: This repo does not use optional blocks. All blocks are backed by either component files or page definitions.
+
 ### 4.3 Reading request data
 
 ```go
@@ -401,14 +454,69 @@ Use this pattern whenever your middleware needs to *serialize* state after the h
 
 ### 6.2 Component inclusion
 
-`base.html`:
+Layouts include components using the `{{block}}` directive with the full template path:
+
+**Example from `layouts/base.html` in this repo:**
 ```html
-{{template "nav" .}}
-<main>{{template "content" .}}</main>
-{{template "footer" .}}
+<body class="min-h-screen flex flex-col">
+  {{block "components/nav" .}}{{end}}
+
+  <main class="flex-1">
+    {{block "content" .}}{{end}}
+  </main>
+
+  {{block "components/footer" .}}{{end}}
+</body>
 ```
 
-Components are loaded by **base name** (no path, no extension). Files in `app/components/*.html` become template sets; place them with `{{template "footer" .}}` etc.
+**Example from `layouts/dashboard.html` in this repo:**
+```html
+<body class="min-h-screen bg-dark-50">
+  {{block "components/dashboard-nav" .}}{{end}}
+
+  <main class="container mx-auto px-4 py-8 max-w-7xl">
+    {{block "content" .}}{{end}}
+  </main>
+
+  {{block "components/footer" .}}{{end}}
+</body>
+```
+
+**Important:** The block name must match the registered template name:
+- `{{block "components/nav" .}}` → requires file `app/components/nav.html` ✓
+- `{{block "components/dashboard-nav" .}}` → requires file `app/components/dashboard-nav.html` ✓
+- `{{block "components/footer" .}}` → requires file `app/components/footer.html` ✓
+- `{{block "content" .}}` → must be defined in every page via `{{define "content"}}` ✓
+
+**Available components in this repo:**
+- `components/nav.html` - Main navigation
+- `components/dashboard-nav.html` - Dashboard navigation
+- `components/footer.html` - Footer
+- `components/user-item.html` - User item component
+
+### 6.3 Nested component references (component → component)
+
+**Important naming difference:** When one component includes another component, use the base name without the `components/` prefix:
+
+```html
+<!-- In components/nav.html -->
+{{template "theme-toggle" .}}  ← Use base name only, no "components/" prefix
+```
+
+**Naming rule by call site:**
+
+| From → To | Syntax | Example |
+|-----------|--------|---------|
+| Layout → Component | `{{block "components/<name>" .}}` | `{{block "components/nav" .}}` |
+| Component → Component | `{{template "<name>" .}}` | `{{template "theme-toggle" .}}` |
+
+The same file `app/components/theme-toggle.html` is referenced differently:
+- From a layout: `{{block "components/theme-toggle" .}}`
+- From another component: `{{template "theme-toggle" .}}`
+
+**Why this difference?** When xun loads component files, they're registered with the `components/` path for layout references. But within the component template itself, sibling templates are referenced by base name only.
+
+**Note:** This repo currently doesn't use nested components. All components are flat and only included from layouts.
 
 ### 6.3 Method calls on data
 
@@ -734,6 +842,10 @@ Visit `http://localhost:8080/dashboard/ws` (must be logged in) to see the browse
 | Render a page (manual handler) | `c.View(data, "X")` — explicit viewer key |
 | Render a shared partial | `c.View(data, "views/X")` — must pass name (no owning route) |
 | Pick a layout | `<!--layout:NAME-->` first line of the page |
+| Include component in layout | `{{block "components/nav" .}}{{end}}` — must match file path |
+| Include component in component | `{{template "user-item" .}}` — use base name, no `components/` prefix |
+| Page body block | `{{define "content"}}...{{end}}` — required in every page |
+| Optional page block | Must define in every page (can be empty): `{{define "head-extra"}}{{end}}` |
 | Read form field | `c.Request.FormValue("k")` |
 | Read path param | `c.Request.PathValue("k")` |
 | Stash typed value | `c.Set("k", v)` |
