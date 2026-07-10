@@ -87,31 +87,36 @@ CURL_FLAGS := -fL --progress-bar -C -
 # Download tailwindcss and esbuild CLIs to ./bin/. Separated from build-ui
 # so Docker / Make can cache this layer independently. Supports Linux and
 # macOS on x64 and ARM64.
+#
+# If tailwindcss or esbuild are already in PATH, create symlinks instead of
+# downloading. This allows using system-installed versions (via npm, apt, etc).
 download-ui-tools:
 	@mkdir -p bin
-	@OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
-	ARCH=$$(uname -m); \
-	if [ "$$OS" = "darwin" ]; then \
-		if [ "$$ARCH" = "arm64" ]; then \
-			TAILWIND_PLATFORM="macos-arm64"; \
-			ESBUILD_PACKAGE="@esbuild/darwin-arm64"; \
-		else \
-			TAILWIND_PLATFORM="macos-x64"; \
-			ESBUILD_PACKAGE="@esbuild/darwin-x64"; \
+	@# Check for tailwindcss in PATH
+	@if command -v tailwindcss >/dev/null 2>&1; then \
+		if [ ! -e bin/tailwindcss ]; then \
+			echo "Using tailwindcss from PATH: $$(command -v tailwindcss)"; \
+			ln -sf $$(command -v tailwindcss) bin/tailwindcss; \
 		fi; \
-	elif [ "$$OS" = "linux" ]; then \
-		if [ "$$ARCH" = "aarch64" ] || [ "$$ARCH" = "arm64" ]; then \
-			TAILWIND_PLATFORM="linux-arm64"; \
-			ESBUILD_PACKAGE="@esbuild/linux-arm64"; \
+	elif [ ! -x bin/tailwindcss ]; then \
+		OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
+		ARCH=$$(uname -m); \
+		if [ "$$OS" = "darwin" ]; then \
+			if [ "$$ARCH" = "arm64" ]; then \
+				TAILWIND_PLATFORM="macos-arm64"; \
+			else \
+				TAILWIND_PLATFORM="macos-x64"; \
+			fi; \
+		elif [ "$$OS" = "linux" ]; then \
+			if [ "$$ARCH" = "aarch64" ] || [ "$$ARCH" = "arm64" ]; then \
+				TAILWIND_PLATFORM="linux-arm64"; \
+			else \
+				TAILWIND_PLATFORM="linux-x64"; \
+			fi; \
 		else \
-			TAILWIND_PLATFORM="linux-x64"; \
-			ESBUILD_PACKAGE="@esbuild/linux-x64"; \
+			echo "  ERROR: Unsupported OS: $$OS" >&2; \
+			exit 1; \
 		fi; \
-	else \
-		echo "  ERROR: Unsupported OS: $$OS" >&2; \
-		exit 1; \
-	fi; \
-	if [ ! -x bin/tailwindcss ]; then \
 		echo "Downloading tailwindcss v$(TAILWIND_VERSION) for $$TAILWIND_PLATFORM..."; \
 		if ! curl $(CURL_FLAGS) -o bin/tailwindcss.tmp \
 			"https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TAILWIND_VERSION)/tailwindcss-$$TAILWIND_PLATFORM"; then \
@@ -122,8 +127,32 @@ download-ui-tools:
 		mv bin/tailwindcss.tmp bin/tailwindcss; \
 		chmod +x bin/tailwindcss; \
 		echo "  tailwindcss downloaded"; \
-	fi; \
-	if [ ! -x bin/esbuild ]; then \
+	fi
+	@# Check for esbuild in PATH
+	@if command -v esbuild >/dev/null 2>&1; then \
+		if [ ! -e bin/esbuild ]; then \
+			echo "Using esbuild from PATH: $$(command -v esbuild)"; \
+			ln -sf $$(command -v esbuild) bin/esbuild; \
+		fi; \
+	elif [ ! -x bin/esbuild ]; then \
+		OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
+		ARCH=$$(uname -m); \
+		if [ "$$OS" = "darwin" ]; then \
+			if [ "$$ARCH" = "arm64" ]; then \
+				ESBUILD_PACKAGE="@esbuild/darwin-arm64"; \
+			else \
+				ESBUILD_PACKAGE="@esbuild/darwin-x64"; \
+			fi; \
+		elif [ "$$OS" = "linux" ]; then \
+			if [ "$$ARCH" = "aarch64" ] || [ "$$ARCH" = "arm64" ]; then \
+				ESBUILD_PACKAGE="@esbuild/linux-arm64"; \
+			else \
+				ESBUILD_PACKAGE="@esbuild/linux-x64"; \
+			fi; \
+		else \
+			echo "  ERROR: Unsupported OS: $$OS" >&2; \
+			exit 1; \
+		fi; \
 		echo "Downloading esbuild v$(ESBUILD_VERSION) for $$ESBUILD_PACKAGE..."; \
 		if ! curl $(CURL_FLAGS) -o bin/esbuild.tmp \
 			"https://cdn.jsdelivr.net/npm/$$ESBUILD_PACKAGE@$(ESBUILD_VERSION)/bin/esbuild"; then \
