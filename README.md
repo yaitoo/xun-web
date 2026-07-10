@@ -281,38 +281,43 @@ The same file `app/components/theme-toggle.html` is referenced differently depen
 - From a layout: `{{block "components/theme-toggle" .}}`
 - From another component: `{{template "theme-toggle" .}}`
 
-**Important:** Unlike Go's default `{{block}}` behavior, xun requires that every block referenced in a layout must be backed by either:
-1. A `{{define}}` in the page file, or
-2. A component file in `app/components/`
+**Block behavior (xun v1.2.2+):**
 
-If a layout contains `{{block "scripts-extra" .}}{{end}}` but no page defines it and no `app/components/scripts-extra.html` exists, you'll get a runtime error: `no such template "scripts-extra"`. 
+xun's `{{block}}` now follows Go's standard `html/template` behavior:
+- If a page defines a block (`{{define "name"}}`), it overrides the default
+- If a page doesn't define a block, the default content from the layout is used
+- No empty definitions required for optional blocks
+
+**Optional blocks example:**
+```html
+<!-- Layout: layouts/base.html -->
+<head>
+    <title>{{block "title" .}}My Site{{end}}</title>
+    {{block "head-extra" .}}{{end}}
+</head>
+<body>
+    {{block "content" .}}<p>Welcome</p>{{end}}
+</body>
+
+<!-- Page that customizes blocks: pages/about.html -->
+<!--layout:base-->
+{{define "title"}}About Us{{end}}
+{{define "content"}}<h1>About</h1>{{end}}
+{{define "head-extra"}}<link href="/about.css">{{end}}
+
+<!-- Page that uses defaults: pages/index.html -->
+<!--layout:base-->
+{{define "content"}}<h1>Home</h1>{{end}}
+<!-- title and head-extra use layout defaults ✅ -->
+```
 
 **Current implementation in this repo:**
 
-All pages in this repo use one of two layouts, and every block referenced has proper backing:
-
+All pages in this repo use one of two layouts:
 - `layouts/base.html` uses: `components/nav`, `content`, `components/footer`
 - `layouts/dashboard.html` uses: `components/dashboard-nav`, `content`, `components/footer`
 
-All component files exist, and all pages define `{{define "content"}}`. This is the **recommended safe pattern**.
-
-**If you need optional per-page blocks (advanced pattern):**
-```html
-<!-- Layout: layouts/base.html -->
-{{block "head-extra" .}}{{end}}
-
-<!-- Page that uses it: pages/index.html -->
-<!--layout:base-->
-{{define "content"}}...{{end}}
-{{define "head-extra"}}<script>...</script>{{end}}
-
-<!-- Page that doesn't use it: pages/about.html -->
-<!--layout:base-->
-{{define "content"}}...{{end}}
-{{define "head-extra"}}{{end}}  <!-- Must provide empty definition -->
-```
-
-Note: This repo does not use optional blocks. All blocks are backed by either component files or page definitions.
+All component files exist, and all pages define `{{define "content"}}`. Pages selectively override other blocks as needed.
 
 ### 4.3 Reading request data
 
