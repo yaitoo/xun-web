@@ -5,10 +5,6 @@ import (
 	"github.com/yaitoo/xun/ext/htmx"
 )
 
-func isHTMXRequest(c *xun.Context) bool {
-	return c.Request.Header.Get("HX-Request") == "true"
-}
-
 func setupRoutes(app *xun.App) {
 	// Serve htmx.js
 	app.HandleFunc("GET /htmx.js", htmx.HandleFunc())
@@ -23,9 +19,8 @@ func setupRoutes(app *xun.App) {
 		return func(c *xun.Context) error {
 			session, _ := c.Get("session").(*Session)
 			if session == nil || session.UserID == 0 {
-				if isHTMXRequest(c) {
-					c.WriteHeader(htmx.HxRedirect, "/login")
-					c.WriteStatus(200)
+				if htmx.IsHxRequest(c) {
+					htmx.WriteRedirect(c, "/login")
 					return nil
 				}
 				c.Redirect("/login")

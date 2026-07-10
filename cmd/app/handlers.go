@@ -29,13 +29,6 @@ type User struct {
 	CreatedAt    time.Time `db:"created_at"`
 }
 
-// isHTMX checks if the request is an HTMX request
-func isHTMX(c *xun.Context) bool {
-	return c.Request.Header.Get("HX-Request") == "true"
-}
-
-// --- Landing Page ---
-
 // handleLanding renders the public landing page. The page has no
 // business model (it's just marketing chrome), so `.Data` is nil; the
 // `title` auxiliary value goes on TempData so the layout can read it.
@@ -87,9 +80,8 @@ func handleLogin(c *xun.Context) error {
 	c.Set("session", session)
 	writeSessionCookie(c, session)
 
-	if isHTMX(c) {
-		c.WriteHeader(htmx.HxRedirect, "/dashboard")
-		c.WriteStatus(http.StatusOK)
+	if htmx.IsHxRequest(c) {
+		htmx.WriteRedirect(c, "/dashboard")
 		return nil
 	}
 
@@ -147,9 +139,8 @@ func handleRegister(c *xun.Context) error {
 	c.Set("session", session)
 	writeSessionCookie(c, session)
 
-	if isHTMX(c) {
-		c.WriteHeader(htmx.HxRedirect, "/dashboard")
-		c.WriteStatus(http.StatusOK)
+	if htmx.IsHxRequest(c) {
+		htmx.WriteRedirect(c, "/dashboard")
 		return nil
 	}
 
@@ -160,9 +151,8 @@ func handleRegister(c *xun.Context) error {
 func handleLogout(c *xun.Context) error {
 	c.Set("session", nil)
 	clearSessionCookie(c)
-	if isHTMX(c) {
-		c.WriteHeader(htmx.HxRedirect, "/")
-		c.WriteStatus(http.StatusOK)
+	if htmx.IsHxRequest(c) {
+		htmx.WriteRedirect(c, "/")
 		return nil
 	}
 	c.Redirect("/")
@@ -358,10 +348,8 @@ func handleUserDetail(c *xun.Context) error {
 	return c.View(u)
 }
 
-// --- Helpers ---
-
 func renderHXRetarget(c *xun.Context, target, message string) error {
-	c.WriteHeader(htmx.HxRetarget, "#"+target)
+	htmx.WriteRetarget(c, "#"+target)
 	c.Set("message", message)
 	return c.View(nil, "views/error-message")
 }

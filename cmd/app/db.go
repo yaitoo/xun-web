@@ -19,6 +19,9 @@ var db *sqlite.DB
 
 func setupSQLite(ctx context.Context) (*sqlite.DB, error) {
 	dsn := viper.GetString("db.dsn")
+	if dsn == "" {
+		dsn = "./app.db"
+	}
 
 	// Assign to the package-level handle so migrateSQLite (which closes
 	// over `db`) sees the same instance. Using `=` rather than `:=` here

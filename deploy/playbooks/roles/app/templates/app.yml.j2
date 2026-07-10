@@ -13,15 +13,13 @@
  # them. The values shipped here are intentionally non-secret and
  # match the local-development defaults in cmd/app/app.yml.        #}
 
-addr:
-  http: "{{ lookup('env', 'APP_HTTP_ADDR') | default(':80', true) }}"
-  https: "{{ lookup('env', 'APP_HTTPS_ADDR') | default(':443', true) }}"
+http: "{{ lookup('env', 'APP_HTTP') | default(':80', true) }}"
 
-tls:
-  enabled: {{ lookup('env', 'APP_TLS_ENABLED') | default('false', true) | bool | string | lower }}
-  cert_file: {{ lookup('env', 'APP_TLS_CERT_FILE') | default('./certs/server.crt', true) }}
-  key_file: {{ lookup('env', 'APP_TLS_KEY_FILE') | default('./certs/server.key', true) }}
-
+https:
+  addr: "{{ lookup('env', 'APP_HTTPS_ADDR') | default(':443', true) }}"
+  enabled: {{ lookup('env', 'APP_HTTPS_ENABLED') | default('false', true) | bool | string | lower }}
+  cert_file: {{ lookup('env', 'APP_HTTPS_CERT_FILE') | default('./certs/server.crt', true) }}
+  key_file: {{ lookup('env', 'APP_HTTPS_KEY_FILE') | default('./certs/server.key', true) }}
 
 db:
   dsn: {{ lookup('env', 'APP_DB_DSN') | default('./app.db', true) }}
@@ -29,7 +27,3 @@ db:
 session:
   secret: {{ lookup('env', 'APP_SESSION_SECRET') }}
   max_age: {{ lookup('env', 'APP_SESSION_MAX_AGE') | default('604800', true) }}
-
-assets:
-  css: /public/assets/app.css
-  js: /public/assets/app.js

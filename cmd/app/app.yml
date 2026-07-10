@@ -1,13 +1,10 @@
-addr:
-  http: ":80"
-  https: ":443"
+http: ":80"
 
-tls:
+https:
+  addr: ":443"
   enabled: false
   cert_file: ./certs/server.crt
   key_file: ./certs/server.key
-
-
 
 db:
   dsn: ./app.db
@@ -15,7 +12,3 @@ db:
 session:
   secret: change-me-in-production
   max_age: 604800  # 7 days in seconds
-
-assets:
-  css: /public/assets/app.css
-  js: /public/assets/app.js

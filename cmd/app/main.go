@@ -104,17 +104,17 @@ func main() {
 // All listeners share the same handler — the *http.ServeMux that was
 // injected into the xun.App via xun.WithMux.
 func runServers(handler http.Handler) error {
-	httpAddr := strings.TrimSpace(viper.GetString("addr.http"))
-	httpsAddr := strings.TrimSpace(viper.GetString("addr.https"))
-	tlsEnabled := viper.GetBool("tls.enabled")
-	certFile := viper.GetString("tls.cert_file")
-	keyFile := viper.GetString("tls.key_file")
+	httpAddr := strings.TrimSpace(viper.GetString("http"))
+	httpsAddr := strings.TrimSpace(viper.GetString("https.addr"))
+	httpsEnabled := viper.GetBool("https.enabled")
+	certFile := viper.GetString("https.cert_file")
+	keyFile := viper.GetString("https.key_file")
 
 	startHTTP := httpAddr != ""
-	startHTTPS := httpsAddr != "" && tlsEnabled
+	startHTTPS := httpsAddr != "" && httpsEnabled
 
 	if !startHTTP && !startHTTPS {
-		return errors.New("no listener configured: set addr.http and/or tls.enabled with addr.https")
+		return errors.New("no listener configured: set http and/or https.enabled with https.addr")
 	}
 
 	servers := make(map[string]*http.Server)
@@ -130,7 +130,7 @@ func runServers(handler http.Handler) error {
 
 	if startHTTPS {
 		if certFile == "" || keyFile == "" {
-			return errors.New("tls.enabled is true but tls.cert_file or tls.key_file is empty")
+			return errors.New("https.enabled is true but https.cert_file or https.key_file is empty")
 		}
 		servers["https"] = &http.Server{
 			Addr:              httpsAddr,
@@ -259,11 +259,11 @@ func createApp(mux *http.ServeMux) *xun.App {
 }
 
 func loadConfig() error {
-	viper.SetDefault("addr.http", ":80")
-	viper.SetDefault("addr.https", ":443")
-	viper.SetDefault("tls.enabled", false)
-	viper.SetDefault("tls.cert_file", "./certs/server.crt")
-	viper.SetDefault("tls.key_file", "./certs/server.key")
+	viper.SetDefault("http", ":80")
+	viper.SetDefault("https.addr", ":443")
+	viper.SetDefault("https.enabled", false)
+	viper.SetDefault("https.cert_file", "./certs/server.crt")
+	viper.SetDefault("https.key_file", "./certs/server.key")
 
 	var conf string
 	flag.StringVar(&conf, "conf", "app.yml", "config file")
