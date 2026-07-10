@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{.title}} - Xun Web</title>
+  <title>{{.TempData.title}} - Xun Web</title>
   <link rel="stylesheet" href="{{asset "/assets/app.css"}}">
   <script src="{{asset "/htmx.js"}}"></script>
 </head>
 <body class="min-h-screen flex flex-col">
-  {{template "nav" .}}
-  
+  {{block "components/nav" .}}{{end}}
+
   <main class="flex-1">
-    {{template "content" .}}
+    {{block "content" .}}{{end}}
   </main>
-  
-  {{template "footer" .}}
+
+  {{block "components/footer" .}}{{end}}
 </body>
 </html>

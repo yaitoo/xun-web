@@ -1,9 +1,9 @@
 <div class="card mb-6 border-tech-cyan">
-  <h3 class="text-lg font-semibold mb-4">Edit User #{{.user.ID}}</h3>
-  
-  <form 
-    hx-put="/dashboard/users/{{.user.ID}}" 
-    hx-target="#user-row-{{.user.ID}}"
+  <h3 class="text-lg font-semibold mb-4">Edit User #{{.ID}}</h3>
+
+  <form
+    hx-put="/dashboard/users/{{.ID}}"
+    hx-target="#user-row-{{.ID}}"
     hx-swap="outerHTML"
     hx-on:htmx:after-request="if(event.detail.successful) document.body.dispatchEvent(new CustomEvent('userFormSuccess'))"
     class="space-y-4"
@@ -11,11 +11,11 @@
     <div class="grid md:grid-cols-2 gap-4">
       <div>
         <label class="label">Name</label>
-        <input type="text" name="name" class="input" value="{{.user.Name}}" required>
+        <input type="text" name="name" class="input" value="{{.Name}}" required>
       </div>
       <div>
         <label class="label">Email</label>
-        <input type="email" name="email" class="input" value="{{.user.Email}}" required>
+        <input type="email" name="email" class="input" value="{{.Email}}" required>
       </div>
     </div>
     

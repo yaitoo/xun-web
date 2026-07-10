@@ -1,4 +1,5 @@
 <!--layout:base-->
+{{define "content"}}
 <div class="min-h-screen flex items-center justify-center py-12 px-6">
   <div class="w-full max-w-md">
     <div class="text-center mb-8">
@@ -8,35 +9,53 @@
       </h1>
       <p class="text-gray-400">Welcome back to Xun Web</p>
     </div>
-    
+
     <div class="card">
       <!-- Error message placeholder -->
       <div id="error-message"></div>
-      
-      <form 
-        hx-post="/login" 
-        hx-swap="none"
+
+      <form
+        hx-post="/login"
+        hx-target="#error-message"
+        hx-swap="innerHTML"
         class="space-y-5"
       >
         <div>
           <label class="label">Email</label>
-          <input type="email" name="email" class="input" placeholder="you@example.com" required>
+          <input
+            type="email"
+            name="email"
+            class="input"
+            placeholder="you@example.com"
+            value="demo@example.com"
+            required>
         </div>
-        
+
         <div>
           <label class="label">Password</label>
-          <input type="password" name="password" class="input" placeholder="••••••••" required>
+          <input
+            type="password"
+            name="password"
+            class="input"
+            placeholder="••••••••"
+            value="demo123"
+            required>
         </div>
-        
+
         <button type="submit" class="btn btn-primary w-full py-2.5">
           Sign In
         </button>
       </form>
-      
-      <p class="text-center text-sm text-gray-400 mt-6">
+
+      <p class="text-center text-xs text-gray-500 mt-4">
+        Demo credentials prefilled: <code class="text-tech-cyan">demo@example.com</code> / <code class="text-tech-cyan">demo123</code>
+      </p>
+
+      <p class="text-center text-sm text-gray-400 mt-4">
         Don't have an account?
         <a href="/register" class="text-tech-cyan hover:text-tech-cyan/80">Register</a>
       </p>
     </div>
   </div>
 </div>
+{{end}}

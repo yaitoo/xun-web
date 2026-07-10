@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/yaitoo/xun"
-	"github.com/yaitoo/xun/ext/cookie"
 	"github.com/yaitoo/xun/ext/htmx"
 )
 
@@ -37,18 +36,19 @@ func isHTMX(c *xun.Context) bool {
 
 // --- Landing Page ---
 
+// handleLanding renders the public landing page. The page has no
+// business model (it's just marketing chrome), so `.Data` is nil; the
+// `title` auxiliary value goes on TempData so the layout can read it.
 func handleLanding(c *xun.Context) error {
-	return c.View(map[string]any{
-		"title": "Xun Web Starter",
-	}, "pages/index")
+	c.Set("title", "Xun Web Starter")
+	return c.View(nil, "index")
 }
 
 // --- Auth Pages ---
 
 func handleLoginPage(c *xun.Context) error {
-	return c.View(map[string]any{
-		"title": "Login",
-	}, "pages/login")
+	c.Set("title", "Login")
+	return c.View(nil, "login")
 }
 
 func handleLogin(c *xun.Context) error {
@@ -77,7 +77,7 @@ func handleLogin(c *xun.Context) error {
 		return renderHXRetarget(c, "error-message", "Invalid email or password")
 	}
 
-	// Create session
+	// Create session and persist it via signed cookie BEFORE redirecting.
 	session := &Session{
 		ID:     generateSessionID(),
 		UserID: user.ID,
@@ -85,6 +85,7 @@ func handleLogin(c *xun.Context) error {
 		Name:   user.Name,
 	}
 	c.Set("session", session)
+	writeSessionCookie(c, session)
 
 	if isHTMX(c) {
 		c.WriteHeader(htmx.HxRedirect, "/dashboard")
@@ -97,9 +98,8 @@ func handleLogin(c *xun.Context) error {
 }
 
 func handleRegisterPage(c *xun.Context) error {
-	return c.View(map[string]any{
-		"title": "Register",
-	}, "pages/register")
+	c.Set("title", "Register")
+	return c.View(nil, "register")
 }
 
 func handleRegister(c *xun.Context) error {
@@ -137,7 +137,7 @@ func handleRegister(c *xun.Context) error {
 
 	userID, _ := result.LastInsertId()
 
-	// Auto-login
+	// Auto-login: persist session in signed cookie before redirect/htmx-write.
 	session := &Session{
 		ID:     generateSessionID(),
 		UserID: userID,
@@ -145,6 +145,7 @@ func handleRegister(c *xun.Context) error {
 		Name:   name,
 	}
 	c.Set("session", session)
+	writeSessionCookie(c, session)
 
 	if isHTMX(c) {
 		c.WriteHeader(htmx.HxRedirect, "/dashboard")
@@ -158,11 +159,7 @@ func handleRegister(c *xun.Context) error {
 
 func handleLogout(c *xun.Context) error {
 	c.Set("session", nil)
-	// Clear the signed session cookie
-	cookie.Delete(c, http.Cookie{
-		Name: sessionCookieName,
-		Path: "/",
-	})
+	clearSessionCookie(c)
 	if isHTMX(c) {
 		c.WriteHeader(htmx.HxRedirect, "/")
 		c.WriteStatus(http.StatusOK)
@@ -174,16 +171,33 @@ func handleLogout(c *xun.Context) error {
 
 // --- Dashboard ---
 
+// handleDashboard renders the dashboard welcome page. There is no
+// per-page business data — the current user comes from sessionMiddleware
+// (TempData.session), and the page title is plain chrome (TempData.title).
+//
+// The page lives at `pages/dashboard/index.html`, whose PageRoute
+// auto-registered the `HtmlViewer` on this very route — so `c.View(nil)`
+// works without a name argument (xun picks the route's viewers by
+// Accept header). Same goes for every other PageRoute handler below.
 func handleDashboard(c *xun.Context) error {
-	session := c.Get("session").(*Session)
-	return c.View(map[string]any{
-		"title": "Dashboard",
-		"name":  session.Name,
-	}, "pages/dashboard")
+	c.Set("title", "Dashboard")
+	return c.View(nil)
+}
+
+// handleWSDemoPage renders a tiny single-page chat UI that connects to
+// the WebSocket endpoint at /api/ws. The page itself is served through
+// the normal xun pipeline (so sessionMiddleware runs); only the WS
+// upgrade endpoint bypasses it.
+func handleWSDemoPage(c *xun.Context) error {
+	c.Set("title", "WebSocket Demo")
+	return c.View(nil)
 }
 
 // --- User CRUD ---
 
+// handleUserList renders the full Users management page. The `users`
+// slice is the page's main business data → `.Data`. The page title is
+// auxiliary chrome → TempData.title.
 func handleUserList(c *xun.Context) error {
 	ctx := context.Background()
 
@@ -202,10 +216,8 @@ func handleUserList(c *xun.Context) error {
 		users = append(users, u)
 	}
 
-	return c.View(map[string]any{
-		"title": "User Management",
-		"users": users,
-	}, "pages/users")
+	c.Set("title", "User Management")
+	return c.View(users)
 }
 
 func handleUserListView(c *xun.Context) error {
@@ -226,9 +238,7 @@ func handleUserListView(c *xun.Context) error {
 		users = append(users, u)
 	}
 
-	return c.View(map[string]any{
-		"users": users,
-	}, "views/users/list")
+	return c.View(users, "views/users/list")
 }
 
 func handleUserRowView(c *xun.Context) error {
@@ -248,9 +258,7 @@ func handleUserRowView(c *xun.Context) error {
 		return err
 	}
 
-	return c.View(map[string]any{
-		"user": u,
-	}, "views/users/row")
+	return c.View(u)
 }
 
 func handleUserCreate(c *xun.Context) error {
@@ -311,9 +319,49 @@ func handleUserDelete(c *xun.Context) error {
 	return nil
 }
 
+// handleUserDetail renders the per-user detail page bound to
+// `pages/dashboard/users/{id}.html`. This is the PageRoute demo:
+//   - The page file's name pattern `{id}` matches Go 1.22 ServeMux
+//     syntax, so xun auto-registers `GET /dashboard/users/{id}` and
+//     serves the template.
+//   - `routes.go → setupRoutes` calls `dashboard.Get("/users/{id}",
+//     handleUserDetail)` AFTER the auto-registration, overwriting the
+//     default nil-data handler with one that loads the User and
+//     passes it as `.Data` for `{{.Data.Name}}` / `{{.Data.Email}}`.
+//
+// PageRoute is the xun idiom for "render a server-side page bound to
+// a URL with optional path parameters". It's the simplest form of SSR
+// in xun: zero JS, one HTML file, one Go handler that returns a
+// struct.
+func handleUserDetail(c *xun.Context) error {
+	id, err := strconv.ParseInt(c.Request.PathValue("id"), 10, 64)
+	if err != nil {
+		c.WriteStatus(http.StatusBadRequest)
+		return nil
+	}
+
+	ctx := context.Background()
+
+	var u User
+	err = db.QueryRowContext(ctx, "SELECT id, name, email, created_at FROM users WHERE id = ?", id).
+		Scan(&u.ID, &u.Name, &u.Email, &u.CreatedAt)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.WriteStatus(http.StatusNotFound)
+			return nil
+		}
+		return err
+	}
+
+	c.Set("title", "User #"+strconv.FormatInt(u.ID, 10))
+	return c.View(u)
+}
+
 // --- Helpers ---
 
 func renderHXRetarget(c *xun.Context, target, message string) error {
 	c.WriteHeader(htmx.HxRetarget, "#"+target)
-	return c.View(map[string]any{"message": message}, "views/error-message")
+	c.Set("message", message)
+	return c.View(nil, "views/error-message")
 }

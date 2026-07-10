@@ -8,7 +8,7 @@
       
       <div class="flex items-center gap-6">
         <a href="/" class="text-gray-300 hover:text-white transition-colors">Home</a>
-        {{if .session}}
+{{if .TempData.session}}
         <a href="/dashboard" class="text-gray-300 hover:text-white transition-colors">Dashboard</a>
         <span class="text-gray-500">|</span>
         <form action="/logout" method="POST" class="inline">

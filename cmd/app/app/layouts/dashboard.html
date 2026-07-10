@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{.title}} - Xun Web Dashboard</title>
+  <title>{{.TempData.title}} - Xun Web Dashboard</title>
   <link rel="stylesheet" href="{{asset "/assets/app.css"}}">
   <script src="{{asset "/htmx.js"}}"></script>
   <style>
@@ -13,12 +13,12 @@
   </style>
 </head>
 <body class="min-h-screen bg-dark-50">
-  {{template "dashboard-nav" .}}
-  
+  {{block "components/dashboard-nav" .}}{{end}}
+
   <main class="container mx-auto px-4 py-8 max-w-7xl">
-    {{template "content" .}}
+    {{block "content" .}}{{end}}
   </main>
-  
-  {{template "footer" .}}
+
+  {{block "components/footer" .}}{{end}}
 </body>
 </html>

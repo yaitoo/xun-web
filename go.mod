@@ -6,7 +6,7 @@ require (
 	github.com/cnlangzi/sqlite v0.0.5
 	github.com/spf13/viper v1.21.0
 	github.com/yaitoo/sqle v1.5.5
-	github.com/yaitoo/xun v1.1.6
+	github.com/yaitoo/xun v1.2.0
 )
 
 require (

@@ -1,0 +1,67 @@
+<!--layout:dashboard-->
+{{define "content"}}
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-3xl font-bold mb-2">User #{{.Data.ID}}</h1>
+    <p class="text-gray-400">Detail view (PageRoute demo)</p>
+  </div>
+  <a href="/dashboard/users" class="btn btn-secondary">← Back to Users</a>
+</div>
+
+<div class="grid md:grid-cols-2 gap-6 mb-8">
+  <div class="card">
+    <h2 class="text-xl font-semibold mb-4">Profile</h2>
+    <dl class="space-y-3 text-sm">
+      <div class="flex">
+        <dt class="w-24 text-gray-400">ID</dt>
+        <dd class="font-mono">#{{.Data.ID}}</dd>
+      </div>
+      <div class="flex">
+        <dt class="w-24 text-gray-400">Name</dt>
+        <dd>{{.Data.Name}}</dd>
+      </div>
+      <div class="flex">
+        <dt class="w-24 text-gray-400">Email</dt>
+        <dd>{{.Data.Email}}</dd>
+      </div>
+      <div class="flex">
+        <dt class="w-24 text-gray-400">Joined</dt>
+        <dd>{{.Data.CreatedAt.Format "2006-01-02 15:04"}}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2 class="text-xl font-semibold mb-4">Quick Edit</h2>
+    <form
+      hx-put="/dashboard/users/{{.Data.ID}}"
+      hx-target="#user-row-{{.Data.ID}}"
+      hx-swap="outerHTML"
+      hx-on:htmx:after-request="if(event.detail.successful) document.body.dispatchEvent(new CustomEvent('userFormSuccess'))"
+      class="space-y-4"
+    >
+      <div>
+        <label class="label">Name</label>
+        <input type="text" name="name" class="input" value="{{.Data.Name}}" required>
+      </div>
+      <div>
+        <label class="label">Email</label>
+        <input type="email" name="email" class="input" value="{{.Data.Email}}" required>
+      </div>
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="/dashboard/users" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="text-xs text-gray-500">
+  This page is auto-registered by xun via
+  <code class="text-tech-cyan">pages/dashboard/users/{id}.html</code>.
+  The file's filename pattern matches Go 1.22 ServeMux (so
+  <code class="text-tech-cyan">{id}</code> becomes a path parameter).
+  A custom handler in <code class="text-tech-cyan">routes.go</code> supplies the User object as
+  <code class="text-tech-cyan">.Data</code> for the template.
+</p>
+{{end}}

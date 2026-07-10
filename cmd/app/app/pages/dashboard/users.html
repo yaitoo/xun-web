@@ -1,10 +1,11 @@
 <!--layout:dashboard-->
+{{define "content"}}
 <div class="mb-8 flex items-center justify-between">
   <div>
     <h1 class="text-3xl font-bold mb-2">User Management</h1>
     <p class="text-gray-400">Manage your application users</p>
   </div>
-  <button 
+  <button
     class="btn btn-primary"
     hx-get="/dashboard/views/users/form"
     hx-target="#user-form-container"
@@ -32,7 +33,7 @@
           </tr>
         </thead>
         <tbody id="users-list-body">
-          {{range .users}}
+          {{range .Data}}
           <tr id="user-row-{{.ID}}">
             <td class="font-mono text-gray-400">#{{.ID}}</td>
             <td>{{.Name}}</td>
@@ -40,7 +41,13 @@
             <td>{{.CreatedAt.Format "2006-01-02"}}</td>
             <td class="text-right">
               <div class="flex items-center justify-end gap-2">
-                <button 
+                <a
+                  href="/dashboard/users/{{.ID}}"
+                  class="btn btn-secondary py-1.5 px-3 text-sm"
+                >
+                  View
+                </a>
+                <button
                   class="btn btn-secondary py-1.5 px-3 text-sm"
                   hx-get="/dashboard/views/users/edit/{{.ID}}"
                   hx-target="#user-form-container"
@@ -48,7 +55,7 @@
                 >
                   Edit
                 </button>
-                <button 
+                <button
                   class="btn btn-danger py-1.5 px-3 text-sm"
                   hx-delete="/dashboard/users/{{.ID}}"
                   hx-target="#user-row-{{.ID}}"
@@ -78,3 +85,4 @@
     htmx.trigger('#users-list', 'reloadUsers');
   });
 </script>
+{{end}}

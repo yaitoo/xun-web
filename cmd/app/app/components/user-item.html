@@ -1,14 +1,14 @@
 <div class="flex items-center justify-between p-4 bg-dark-200 rounded-lg">
   <div class="flex items-center gap-3">
     <div class="w-10 h-10 bg-tech-cyan/10 rounded-full flex items-center justify-center">
-      <span class="text-tech-cyan font-semibold">{{.user.Initials}}</span>
+      <span class="text-tech-cyan font-semibold">{{.Data.user.Initials}}</span>
     </div>
     <div>
-      <p class="font-medium">{{.user.Name}}</p>
-      <p class="text-sm text-gray-400">{{.user.Email}}</p>
+      <p class="font-medium">{{.Data.user.Name}}</p>
+      <p class="text-sm text-gray-400">{{.Data.user.Email}}</p>
     </div>
   </div>
   <div class="text-sm text-gray-500">
-    {{.user.CreatedAt.Format "Jan 2, 2006"}}
+    {{.Data.user.CreatedAt.Format "Jan 2, 2006"}}
   </div>
 </div>

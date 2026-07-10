@@ -73,6 +73,13 @@ func main() {
 	// Setup routes
 	setupRoutes(app)
 
+	// Native routes: anything that needs the raw *http.ResponseWriter
+	// (e.g. WebSocket upgrade, SSE, third-party http.Handler integrations)
+	// is registered through app.Mux(). These routes bypass ALL xun
+	// middleware — including sessionMiddleware — so auth must be
+	// re-implemented in the handler itself.
+	setupNativeRoutes(app, newWSHub())
+
 	// Reference the build-time identity vars so the linker keeps them;
 	// without this read, dead-code elimination would strip them and the
 	// -X ldflags injection in the Makefile would be a no-op.
