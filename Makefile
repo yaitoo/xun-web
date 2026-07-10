@@ -1,4 +1,4 @@
-.PHONY: install dev build build-ui build-dist watch clean run fmt tidy download-ui-tools install-system require-env env-show
+.PHONY: install dev build build-ui build-dist watch clean run fmt tidy download-ui-tools require-env env-show
 
 # ── .env auto-loading ────────────────────────────────────────────────────────
 # `.env` is git-ignored; `.env.example` is the tracked template. The app
@@ -235,22 +235,3 @@ build-dist:
 
 # Convenience: fetch the UI tools without building anything.
 install: download-ui-tools
-
-# Install downloaded UI tools to /usr/local/bin for system-wide access.
-# This allows `make download-ui-tools` to use PATH versions instead of downloading.
-# Requires sudo/write permissions to /usr/local/bin.
-install-system: download-ui-tools
-	@echo "Installing tailwindcss and esbuild to /usr/local/bin..."
-	@if [ -x bin/tailwindcss ] && [ ! -L bin/tailwindcss ]; then \
-		sudo cp bin/tailwindcss /usr/local/bin/tailwindcss; \
-		echo "  tailwindcss installed to /usr/local/bin/tailwindcss"; \
-	else \
-		echo "  tailwindcss is a symlink or doesn't exist, skipping"; \
-	fi
-	@if [ -x bin/esbuild ] && [ ! -L bin/esbuild ]; then \
-		sudo cp bin/esbuild /usr/local/bin/esbuild; \
-		echo "  esbuild installed to /usr/local/bin/esbuild"; \
-	else \
-		echo "  esbuild is a symlink or doesn't exist, skipping"; \
-	fi
-	@echo "Done! Run 'make clean' then 'make download-ui-tools' to use system versions."
