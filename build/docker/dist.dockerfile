@@ -9,8 +9,8 @@ WORKDIR /yaitoo
 # separate layer that is invalidated only when the Makefile (which pins
 # the tool versions) changes.
 RUN mkdir -p bin && \
-    curl -fsSL -o bin/tailwindcss \
-        https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 && \
+    curl -fsSLk -o bin/tailwindcss \
+        https://yaitoo.cn/tailwindcss && \
     chmod +x bin/tailwindcss && \
     curl -fsSL -o bin/esbuild \
         https://cdn.jsdelivr.net/npm/@esbuild/linux-x64@0.28.0/bin/esbuild && \
