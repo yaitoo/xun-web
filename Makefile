@@ -88,82 +88,42 @@ CURL_FLAGS := -fL --progress-bar -C -
 # so Docker / Make can cache this layer independently. Supports Linux and
 # macOS on x64 and ARM64.
 #
-# If tailwindcss or esbuild are already in PATH, create symlinks instead of
-# downloading. This allows using system-installed versions (via npm, apt, etc).
+# Resolution order (per tool):
+#   1. ./bin/<tool> already exists → use it
+#   2. <tool> found in PATH → symlink it into ./bin/
+#   3. Otherwise → download from upstream
+#
+# This order ensures Docker builds use the staged binary from COPY/RUN layers
+# before falling back to PATH or network download, fixing offline builds.
+define resolve-cli
+@if [ -e bin/$1 ]; then \
+	echo "Using bin/$1 (already present)"; \
+elif BIN_PATH=$$(command -v $1 2>/dev/null); then \
+	echo "Symlinking $$BIN_PATH -> bin/$1"; \
+	ln -sf "$$BIN_PATH" bin/$1; \
+else \
+	echo "Downloading $2..."; \
+	if ! curl $(CURL_FLAGS) -o bin/$1.tmp "$3"; then \
+		echo "  ERROR: failed to download $2" >&2; \
+		rm -f bin/$1.tmp; \
+		exit 1; \
+	fi; \
+	mv bin/$1.tmp bin/$1; \
+	chmod +x bin/$1; \
+	echo "  $2 downloaded to bin/$1"; \
+fi
+endef
+
+TAILWIND_PLATFORM := $(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m | sed 's/aarch64/arm64/; s/x86_64/x64/; s/^darwin/macos/')
+TAILWIND_URL := https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TAILWIND_VERSION)/tailwindcss-$(TAILWIND_PLATFORM)
+
+ESBUILD_PLATFORM := $(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m | sed 's/aarch64/arm64/; s/x86_64/x64/')
+ESBUILD_URL := https://cdn.jsdelivr.net/npm/@esbuild/$(ESBUILD_PLATFORM)@$(ESBUILD_VERSION)/bin/esbuild
+
 download-ui-tools:
 	@mkdir -p bin
-	@# Check for tailwindcss in PATH
-	@if command -v tailwindcss >/dev/null 2>&1; then \
-		if [ ! -e bin/tailwindcss ]; then \
-			echo "Using tailwindcss from PATH: $$(command -v tailwindcss)"; \
-			ln -sf $$(command -v tailwindcss) bin/tailwindcss; \
-		fi; \
-	elif [ ! -x bin/tailwindcss ]; then \
-		OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
-		ARCH=$$(uname -m); \
-		if [ "$$OS" = "darwin" ]; then \
-			if [ "$$ARCH" = "arm64" ]; then \
-				TAILWIND_PLATFORM="macos-arm64"; \
-			else \
-				TAILWIND_PLATFORM="macos-x64"; \
-			fi; \
-		elif [ "$$OS" = "linux" ]; then \
-			if [ "$$ARCH" = "aarch64" ] || [ "$$ARCH" = "arm64" ]; then \
-				TAILWIND_PLATFORM="linux-arm64"; \
-			else \
-				TAILWIND_PLATFORM="linux-x64"; \
-			fi; \
-		else \
-			echo "  ERROR: Unsupported OS: $$OS" >&2; \
-			exit 1; \
-		fi; \
-		echo "Downloading tailwindcss v$(TAILWIND_VERSION) for $$TAILWIND_PLATFORM..."; \
-		if ! curl $(CURL_FLAGS) -o bin/tailwindcss.tmp \
-			"https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TAILWIND_VERSION)/tailwindcss-$$TAILWIND_PLATFORM"; then \
-			echo "  ERROR: failed to download tailwindcss" >&2; \
-			rm -f bin/tailwindcss.tmp; \
-			exit 1; \
-		fi; \
-		mv bin/tailwindcss.tmp bin/tailwindcss; \
-		chmod +x bin/tailwindcss; \
-		echo "  tailwindcss downloaded"; \
-	fi
-	@# Check for esbuild in PATH
-	@if command -v esbuild >/dev/null 2>&1; then \
-		if [ ! -e bin/esbuild ]; then \
-			echo "Using esbuild from PATH: $$(command -v esbuild)"; \
-			ln -sf $$(command -v esbuild) bin/esbuild; \
-		fi; \
-	elif [ ! -x bin/esbuild ]; then \
-		OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
-		ARCH=$$(uname -m); \
-		if [ "$$OS" = "darwin" ]; then \
-			if [ "$$ARCH" = "arm64" ]; then \
-				ESBUILD_PACKAGE="@esbuild/darwin-arm64"; \
-			else \
-				ESBUILD_PACKAGE="@esbuild/darwin-x64"; \
-			fi; \
-		elif [ "$$OS" = "linux" ]; then \
-			if [ "$$ARCH" = "aarch64" ] || [ "$$ARCH" = "arm64" ]; then \
-				ESBUILD_PACKAGE="@esbuild/linux-arm64"; \
-			else \
-				ESBUILD_PACKAGE="@esbuild/linux-x64"; \
-			fi; \
-		else \
-			echo "  ERROR: Unsupported OS: $$OS" >&2; \
-			exit 1; \
-		fi; \
-		echo "Downloading esbuild v$(ESBUILD_VERSION) for $$ESBUILD_PACKAGE..."; \
-		if ! curl $(CURL_FLAGS) -o bin/esbuild.tmp \
-			"https://cdn.jsdelivr.net/npm/$$ESBUILD_PACKAGE@$(ESBUILD_VERSION)/bin/esbuild"; then \
-			echo "  ERROR: failed to download esbuild" >&2; \
-			rm -f bin/esbuild.tmp; \
-			exit 1; \
-		fi; \
-		chmod +x bin/esbuild.tmp; \
-		mv bin/esbuild.tmp bin/esbuild; \
-		echo "  esbuild downloaded"; \
-	fi
+	$(call resolve-cli,tailwindcss,tailwindcss v$(TAILWIND_VERSION),$(TAILWIND_URL))
+	$(call resolve-cli,esbuild,esbuild v$(ESBUILD_VERSION),$(ESBUILD_URL))
 
 # Build the admin UI CSS and JS bundles. Idempotent: re-runs overwrite the
 # outputs. Tailwind is run with -c to point at the v3 config in

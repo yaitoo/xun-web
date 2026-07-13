@@ -1,0 +1,31 @@
+# Build outputs
+bin/
+dist/
+
+# Git metadata
+.git/
+.gitignore
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Generated UI assets (rebuilt inside the image)
+cmd/app/app/public/assets/app.css
+cmd/app/app/public/assets/app.min.js
+cmd/app/app/public/assets/app.min.js.map
+
+# SQLite data directory
+data/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
