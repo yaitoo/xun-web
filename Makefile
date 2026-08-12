@@ -1,4 +1,4 @@
-.PHONY: install dev build build-ui build-dist watch clean run fmt tidy download-ui-tools require-env env-show
+.PHONY: install dev build build-ui build-dist watch clean run fmt tidy download-ui-tools require-env warn-env env-show
 
 # ── .env auto-loading ────────────────────────────────────────────────────────
 # `.env` is git-ignored; `.env.example` is the tracked template. The app
@@ -39,6 +39,14 @@ require-env:
 	@if [ ! -f $(ENV_FILE) ]; then \
 		echo "  ! $(ENV_FILE) not found — copy .env.example to .env first" >&2; \
 		exit 1; \
+	fi
+
+# Soft guard: print a warning but continue. Used by `dev` where missing
+# `.env` is acceptable — the app falls back to defaults from cmd/app/app.yml
+# (see app.yml.j2's `lookup('env', ...) | default(...)` chain).
+warn-env:
+	@if [ ! -f $(ENV_FILE) ]; then \
+		echo "  ⚠ $(ENV_FILE) not found — continuing with defaults from .env.example / cmd/app/app.yml" >&2; \
 	fi
 
 # Print the effective vars loaded from .env (debug aid).
@@ -158,8 +166,10 @@ watch: download-ui-tools
 
 # Development: watch Tailwind in the background and start the Go app.
 # `go run ./cmd/app` (directory form) is required — see the `run` target.
-# `$(ENV_LOAD)` sources .env so APP_* vars reach the go process.
-dev: download-ui-tools require-env
+# `$(ENV_LOAD)` sources .env so APP_* vars reach the go process. A missing
+# `.env` only triggers a warning (warn-env) — the app keeps running with
+# its built-in defaults from cmd/app/app.yml, which is fine for local dev.
+dev: download-ui-tools warn-env
 	@bin/tailwindcss -c $(TAILWIND_CONFIG) -i $(TAILWIND_INPUT) -o $(TAILWIND_OUTPUT) --watch & \
 	  $(ENV_LOAD) go run ./cmd/app
 
