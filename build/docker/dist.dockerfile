@@ -1,6 +1,6 @@
 ARG APP_NAME=yaitoo
 
-FROM yaitoo-debian AS yaitoo-build
+FROM imlangzi/yaitoo:golang AS yaitoo-build
 
 WORKDIR /yaitoo
 
