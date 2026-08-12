@@ -1,5 +1,26 @@
 ---
 
+# Pre-flight: verify the artefact produced by `make build-dist` actually
+# exists before we start touching the target host. This catches the
+# common mistake of running the playbook before rebuilding, and
+# surfaces dist.dockerfile issues (e.g. COPY path bug → no ./dist/app)
+# as a clear error here instead of an opaque "file not found" later.
+- name: Verify built artefact exists locally
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../dist/app"
+  register: nm_artefact
+  delegate_to: localhost
+  become: false
+
+- name: Fail loudly when the built artefact is missing
+  ansible.builtin.fail:
+    msg: >-
+      dist/app not found.
+      Run `make build-dist` on the deploy host before invoking this playbook.
+  when: not nm_artefact.stat.exists
+  delegate_to: localhost
+  become: false
+
 - name: Create starter user
   become: true
   user:
@@ -32,7 +53,7 @@
 - name: Install starter
   become: true
   copy:
-    src: app
+    src: "{{ playbook_dir }}/../../dist/app"
     dest: /usr/local/starter/app
     owner: starter
     group: starter
@@ -44,7 +65,7 @@
   copy:
     src: app.service
     dest: /etc/systemd/system/starter.service
-  notify: 
+  notify:
     - reload systemd
     - reload starter
 
