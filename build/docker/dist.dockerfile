@@ -19,7 +19,10 @@ COPY . .
 ENV GOCACHE=/root/.cache/go-build
 RUN --mount=type=cache,target="/root/.cache/go-build" make build
 
-# Export stage to allow docker build -o to output binaries directly
+# Export stage to allow docker build -o to output binaries directly.
+# `make build` puts the binary at bin/app (not at the WORKDIR root),
+# so the COPY source must reflect that — otherwise the `${APP_NAME}-*`
+# glob matches nothing and `./dist/` ends up empty.
 FROM scratch AS export-stage
 ARG APP_NAME=yaitoo
-COPY --from=yaitoo-build /yaitoo/${APP_NAME}-* /
+COPY --from=yaitoo-build /yaitoo/bin/app /app

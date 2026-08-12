@@ -201,7 +201,15 @@ tidy:
 # local `build` target) so the two never overwrite each other. The base
 # image is pulled from Docker Hub as `imlangzi/yaitoo:golang` (built and
 # published by `make build-golang`).
-build-dist:
+#
+# Depends on `download-ui-tools` so the host's resolve-cli populates
+# ./bin/{tailwindcss,esbuild} with the HOST-arch binaries — purely for
+# keeping the local `make` graph self-contained. The dist build itself
+# ignores ./bin/ (it's filtered out by .dockerignore to prevent a
+# host-arch tailwindcss from `exec format error`-ing inside the
+# linux/amd64 container) and downloads linux-x64 variants inside the
+# container via dist.dockerfile's RUN.
+build-dist: download-ui-tools
 	@mkdir -p dist
 	$(ENV_LOAD) ./build/dist.sh
 
