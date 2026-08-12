@@ -9,8 +9,8 @@ port: {{ rustfs_port | default(9000) }}
 data_dir: "/var/lib/rustfs"
 
 # Access credentials (change these in production!)
-access_key: "{{ rustfs_access_key | default('@Yaitoo2026@AK') }}"
-secret_key: "{{ rustfs_secret_key | default('@Yaitoo2026@SK') }}"
+access_key: "{{ rustfs_access_key | default('Xun123') }}"
+secret_key: "{{ rustfs_secret_key | default('Xun123') }}"
 
 # Bucket settings
 max_bucket_size: "{{ rustfs_max_bucket_size | default(10737418240) }}"  # 10GB default
