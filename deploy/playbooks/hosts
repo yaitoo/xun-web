@@ -1,5 +1,5 @@
 [app]
-sv-us ansible_host=sv-us ansible_user=yaitoo
+sv-us ansible_host=sv-us ansible_user=root
 
 [app:vars]
 ansible_python_interpreter=auto_silent
