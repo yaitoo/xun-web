@@ -1003,7 +1003,12 @@ Key properties:
 
 4. **`xun.WithContent` only auto-registers routes**, it does **not** auto-list posts. A listing page needs a manual handler that walks the fsys (see `listBlogPosts` in `cmd/app/blogs.go`).
 
-5. **`app/blog/index.html` does NOT register at `/blog`.** It registers at `GET /index` instead, because `loadContentPage` strips the directory prefix and the `/index.html` suffix in the wrong order — `rel` ends up as `index.html`, and `splitFile("index.html")` becomes `GET /index`. Same code path also treats `blog/index.md` as `GET /blog/index`. Workaround: put the section landing at `app/pages/blog.html` (regular page loader, which handles `index.html → /<dir>/{$}` correctly via slice trimming). When xun fixes the strip, we can move it back into `app/blog/`.
+5. **`app/blog/index.html` does NOT register at `/blog`.** Empirically verified against xun main `53c34982123d`:
+   - `app/blog/index.html` registers at **`GET /index`** — `loadContentPage` strips `dir+"/"` to get `rel = "index.html"`, then tries `TrimSuffix(rel, "/index.html")` which doesn't match (the leading `/` is already gone), so `rel` stays as `index.html` and `splitFile("index.html")` becomes `GET /index`.
+   - `app/blog/index.md` registers at **no route at all** — `loadContentFile` requires a bubble-up template; with no `index.tpl` sibling, the route is skipped (warning: `content has no bubble-up template`).
+   - The docs example (`content/2026/index.md → GET /2026/`) is aspirational; the code path doesn't implement it.
+
+   Workaround: put the section landing at `app/pages/blog.html` (regular page loader, which handles `index.html → /<dir>/{$}` correctly via slice trimming). When xun fixes the strip, we can move it back into `app/blog/`.
 
 6. **The overlay FS mounts at the mount prefix, not ".".** When `overlay` is `os.DirFS("./blog")`, paths to look up there must drop the `"blog/"` prefix before opening; my first pass forgot and xun got `open blog/foo.md: file does not exist`. Single-method `Open` + a `CutPrefix` check fixes it.
 
