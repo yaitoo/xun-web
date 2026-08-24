@@ -41,6 +41,14 @@ func setupRoutes(app *xun.App) {
 	// `/{$}` form matches exactly "/" with no path suffix, which is
 	// what Go 1.22 ServeMux requires for the root index page.
 	app.Get("/{$}", handleLanding)
+
+	// /blogs is a manually-registered listing page that walks the
+	// blog content directory at request time. The individual post
+	// routes (/blog/<slug>) are NOT registered here — xun's
+	// WithContent("blog") option auto-registers every .md file in
+	// app/blog/ as a GET /blog/<slug> route at startup.
+	app.Get("/blogs", handleBlogsListing)
+
 	app.Get("/login", handleLoginPage)
 	app.Post("/login", handleLogin)
 	app.Get("/register", handleRegisterPage)

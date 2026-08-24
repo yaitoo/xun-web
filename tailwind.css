@@ -66,4 +66,27 @@
   .data-table tbody tr:hover {
     @apply bg-dark-200/50;
   }
+
+  /* =========================================================================
+     Blog prose wrapper
+     -------------------------------------------------------------------------
+     Markdown → HTML conversion lives in xun's Content feature; the rendered
+     body is dropped into a div with `prose prose-invert max-w-none`. All
+     per-tag rules come from `@tailwindcss/typography`; brand-specific
+     colour overrides are configured in `cmd/app/app/tailwind.config.js`
+     under `extend.typography.invert.css`.
+
+     Local overrides here are limited to layout glue that the plugin does not
+     own — outer spacing around the article body, the header chrome's
+     relationship to the article, and the gap before the footer.
+     ========================================================================= */
+  .prose-body {
+    @apply max-w-3xl mx-auto py-12 px-6;
+  }
+  .prose-body > .prose {
+    @apply mt-2;
+  }
+  .prose-body > footer {
+    @apply mt-16 pt-8 border-t border-dark-300 flex items-center justify-between;
+  }
 }

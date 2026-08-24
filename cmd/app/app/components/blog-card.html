@@ -1,0 +1,26 @@
+{{define "components/blog-card"}}
+<a href="/blog/{{.Slug}}" class="card hover:border-tech-cyan/40 transition-colors group block">
+  <div class="flex items-center gap-3 text-xs text-gray-500 mb-3">
+    <span>{{formatBlogDate .Date}}</span>
+    {{if .Slug}}
+    <span class="w-1 h-1 rounded-full bg-gray-600"></span>
+    <span class="font-mono text-gray-600">/{{.Slug}}</span>
+    {{end}}
+  </div>
+
+  <h3 class="text-xl font-semibold text-white group-hover:text-tech-cyan transition-colors mb-2">
+    {{if .Title}}{{.Title}}{{else}}Untitled{{end}}
+  </h3>
+
+  {{if .Description}}
+  <p class="text-sm text-gray-400 leading-relaxed">{{trimParagraph .Description 180}}</p>
+  {{end}}
+
+  <div class="mt-4 text-sm text-tech-cyan inline-flex items-center gap-1">
+    Read post
+    <svg class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+  </div>
+</a>
+{{end}}
