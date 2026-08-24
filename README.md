@@ -841,17 +841,28 @@ The `app/blog/` tree is a **working demo of xun's Content feature**: drop a Mark
 
 ### 11.1 What you write vs. what xun does
 
-In **development** the tree lives at `./app/blog/`:
+In **development** the tree lives at `./app/`:
 
 ```
-app/blog/                                    (xun.WithContent("blog"))
-├── index.html             ← bubble-up wrapper, <!--layout:base-->
-├── welcome-to-xun-content.md
-├── routing-with-templates.md
-├── gfm-showcase.md
-└── 2026/
-    └── nested-posts.md    ← nested directory becomes a URL prefix
+app/                                         (xun.WithContent("blog"))
+├── blog/
+│   ├── index.tpl           ← bubble-up wrapper, <!--layout:base-->
+│   ├── welcome-to-xun-content.md
+│   ├── routing-with-templates.md
+│   ├── gfm-showcase.md
+│   └── 2026/
+│       └── nested-posts.md   ← nested directory becomes a URL prefix
+└── pages/
+    └── blog.html            ← section landing at /blog (regular page route)
 ```
+
+xun's Content engine splits content files by extension (commit `53c34982123d`):
+
+- `.md` → auto-registered as `GET /<slug>`
+- `.tpl` → bubble-up template only (no route)
+- `.html` (in `content/`) → page route, skipped by bubble-up
+
+`app/blog/index.tpl` is the bubble-up wrapper used by every `.md` in this tree. `app/pages/blog.html` is the section landing at `/blog` — it's a regular page outside `content/`, registered via the standard page loader (which correctly handles `index.html → /<dir>/{$}`).
 
 In **production** the tree is deployed at `./blog/` next to the binary (see 11.2). xun, at startup, walks the directory and:
 
@@ -859,7 +870,8 @@ In **production** the tree is deployed at `./blog/` next to the binary (see 11.2
 |---|---|
 | `blog/welcome-to-xun-content.md` | `GET /blog/welcome-to-xun-content` |
 | `blog/2026/nested-posts.md` | `GET /blog/2026/nested-posts` |
-| `blog/index.html` | bubble-up wrapper for every `.md` in this tree |
+| `blog/index.tpl` | bubble-up wrapper for every `.md` in this tree (not a route) |
+| `pages/blog.html` | `GET /blog` (section landing) |
 
 The wrapper is plain xun templating — `<!--layout:base-->`, a `{{define "content"}}` block, and `{{.Content.Body}}` for the rendered Markdown. Nothing Content-specific beyond reading `.Content.{Title,Description,Date,Body,Slug,Path}`.
 
@@ -914,18 +926,20 @@ The `overlayFS` type is ~15 lines: a single `Open(name)` that forwards to `overl
 
 ### 11.3 The bubble-up template trick
 
-xun looks for an HTML wrapper for each `.md` file in this order:
+xun's bubble-up looks for a **`.tpl`** template next to each `.md` file in this order:
 
 ```
-1.  blog/<slug>.html           (per-post override)
-2.  blog/<dir>/index.html      (section landing for that directory)
-3.  blog/index.html            (top-level wrapper)
-4.  index.html                 (root fallback — usually wrong)
+1.  blog/<slug>.tpl           (per-post override)
+2.  blog/<dir>/index.tpl      (section template)
+3.  blog/index.tpl            (top-level wrapper)
+4.  index.tpl                 (root fallback — usually wrong)
 ```
 
-Because we only have `blog/index.html`, **every post renders through the same wrapper** — there is no per-post HTML boilerplate. The wrapper is also the `/blog` page route, so it has an `{{if .Content}}` branch for "post view" and an `{{else}}` branch for "no post selected" (which becomes the section landing).
+`.html` files in `content/` are **not** consulted by bubble-up — that's the whole point of the `.tpl/.html` split: a directory may carry an `index.tpl` wrapper and an `index.html` page without the wrapper occupying the route. We have `blog/index.tpl` only, so **every post renders through the same wrapper**.
 
-> **Gotcha**: xun's `splitFile("")` resolves `blog/index.html` to `GET /{$}` (the **root**), not `GET /blog`. The wrapper is shared with `pages/index.html` — the first registered viewer wins, so `/` shows the marketing landing and the article wrapper still serves every `/blog/*` route. Use `/blogs` (plural) for the listing.
+The section landing `/blog` lives at `app/pages/blog.html` (regular page route, **outside** `app/blog/`). This is the workaround for a current xun limitation: as of the latest main commit, `loadContentPage` registers `blog/index.html` at `GET /index` (not `/blog`) because its `TrimSuffix(rel, "/index.html")` doesn't strip the leading `/` from `rel`. The same code path treats `blog/index.md` as `GET /blog/index`. Putting the section landing in `pages/` instead sidesteps the bug while keeping the rest of the convention.
+
+> **Gotcha**: xun's Content engine and the regular page loader both walk their own directory trees, and both auto-register a route for `index.html`. They never see each other's files, but the resulting routes can collide if a `pages/<x>.html` matches a `content/<x>/` subtree. We avoid this by keeping `pages/blog.html` and `blog/` cleanly separated by directory.
 
 ### 11.4 GFM is on by default — but pick the right granularity
 
@@ -989,7 +1003,7 @@ Key properties:
 
 4. **`xun.WithContent` only auto-registers routes**, it does **not** auto-list posts. A listing page needs a manual handler that walks the fsys (see `listBlogPosts` in `cmd/app/blogs.go`).
 
-5. **Watch out for the `blog/index.html` collision with root**. xun's `loadContentPage` strips `/index.html` to empty, then `splitFile("")` resolves to `GET /{$}`. If you have a separate `pages/index.html` for `/`, both viewers attach; the first-registered wins.
+5. **`app/blog/index.html` does NOT register at `/blog`.** It registers at `GET /index` instead, because `loadContentPage` strips the directory prefix and the `/index.html` suffix in the wrong order — `rel` ends up as `index.html`, and `splitFile("index.html")` becomes `GET /index`. Same code path also treats `blog/index.md` as `GET /blog/index`. Workaround: put the section landing at `app/pages/blog.html` (regular page loader, which handles `index.html → /<dir>/{$}` correctly via slice trimming). When xun fixes the strip, we can move it back into `app/blog/`.
 
 6. **The overlay FS mounts at the mount prefix, not ".".** When `overlay` is `os.DirFS("./blog")`, paths to look up there must drop the `"blog/"` prefix before opening; my first pass forgot and xun got `open blog/foo.md: file does not exist`. Single-method `Open` + a `CutPrefix` check fixes it.
 
