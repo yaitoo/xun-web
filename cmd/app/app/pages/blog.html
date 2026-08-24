@@ -1,0 +1,24 @@
+<!--layout:base-->
+{{define "content"}}
+<section class="py-24 px-6">
+  <div class="max-w-3xl mx-auto text-center">
+    <div class="inline-flex items-center gap-2 px-4 py-2 bg-dark-200 rounded-full border border-dark-300 text-sm text-gray-400 mb-8">
+      <span class="w-2 h-2 bg-tech-purple rounded-full animate-pulse"></span>
+      xun Content feature
+    </div>
+    <h1 class="text-4xl md:text-5xl font-bold mb-6">
+      <span class="text-tech-cyan">Blog</span>
+      <span class="text-gray-500">/</span>
+      <span class="text-white">Section</span>
+    </h1>
+    <p class="text-lg text-gray-400 mb-10 max-w-xl mx-auto">
+      This is the <code class="text-tech-cyan">/blog</code> section landing — registered from
+      <code class="text-tech-cyan">app/pages/blog.html</code> by xun's regular page loader.
+      Each Markdown file in <code class="text-tech-cyan">app/blog/</code> is a sibling .md and renders
+      through <code class="text-tech-cyan">app/blog/index.tpl</code> via bubble-up.
+    </p>
+    <a href="/blogs" class="btn btn-primary text-lg px-8 py-3">Browse all posts</a>
+    <a href="/blog/gfm-showcase" class="btn btn-secondary text-lg px-8 py-3 mt-3">Try the GFM showcase</a>
+  </div>
+</section>
+{{end}}
