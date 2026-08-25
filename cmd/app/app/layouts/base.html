@@ -6,6 +6,7 @@
   <title>{{.TempData.title}} - Xun Web</title>
   <link rel="stylesheet" href="{{asset "/assets/app.css"}}">
   <script src="{{asset "/htmx.js"}}"></script>
+  {{block "head-extra" .}}{{end}}
 </head>
 <body class="min-h-screen flex flex-col">
   {{block "components/nav" .}}{{end}}

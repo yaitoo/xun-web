@@ -142,3 +142,22 @@ func formatBlogDate(t time.Time) string {
 	}
 	return t.UTC().Format("Jan 2, 2006")
 }
+
+// joinSlice is the template helper bound as `joinSlice`. It concatenates
+// a []any with a hard-coded ", " separator, converting each element to
+// string and ignoring empty entries. The slice type comes from the YAML
+// parser; a hard-coded separator avoids a multi-arg template call that
+// xun's template engine treats ambiguously when one argument is a string
+// literal and the other is a slice.
+//
+// Named joinSlice (not join) so it doesn't shadow xun's built-in join,
+// which has signature func(sep string, a ...string).
+func joinSlice(items []any) string {
+	out := make([]string, 0, len(items))
+	for _, v := range items {
+		if s, ok := v.(string); ok && s != "" {
+			out = append(out, s)
+		}
+	}
+	return strings.Join(out, ", ")
+}

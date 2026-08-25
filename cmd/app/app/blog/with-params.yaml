@@ -1,0 +1,33 @@
+# Sidecar metadata for blog/with-params.md.
+# xun's Content engine parses this file and exposes it on
+# ContentView.Params at render time. Pages can use it to populate
+# <meta> tags, Open Graph, Twitter Card, JSON-LD, RSS, etc.
+#
+# Field names are arbitrary — the framework does not validate them.
+
+title: "Sharing Blog Posts with Twitter Card & Open Graph"
+description: >
+  A sidecar .yaml file alongside a .md post, parsed by xun's
+  Content engine into ContentView.Params. Templates use it to inject
+  <meta> tags without touching layout glue.
+author: "Lz"
+published_at: "2026-08-25"
+
+# Open Graph
+og:
+  type: "article"
+  image: "https://example.com/static/blog/with-params.png"
+
+# Twitter Card
+twitter:
+  card: "summary_large_image"
+  site: "@yaitoo"
+  creator: "@yaitoo"
+
+# Article-specific
+article:
+  tags:
+    - "xun"
+    - "tailwind"
+    - "metadata"
+  reading_time: "3 min"

@@ -300,9 +300,15 @@ func createApp(mux *http.ServeMux) *xun.App {
 		}),
 		// Custom template helpers used by the blog feature. trimParagraph
 		// is used by the listing card to cap description previews;
-		// formatBlogDate renders .Content.Date consistently in UTC.
+		// formatBlogDate renders .Content.Date consistently in UTC;
+		// joinSlice joins a []any into a string for head-meta tags
+		// (article tags, keywords, etc.) sourced from .Content.Params.
+		// Named joinSlice instead of join to avoid shadowing xun's
+		// built-in join (which takes a sep + variadic strings, not
+		// a slice).
 		xun.WithTemplateFunc("trimParagraph", trimParagraph),
 		xun.WithTemplateFunc("formatBlogDate", formatBlogDate),
+		xun.WithTemplateFunc("joinSlice", joinSlice),
 	)
 
 	app.Use(sessionMiddleware,
