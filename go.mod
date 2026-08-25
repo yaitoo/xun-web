@@ -6,7 +6,7 @@ require (
 	github.com/cnlangzi/sqlite v0.0.5
 	github.com/spf13/viper v1.21.0
 	github.com/yaitoo/sqle v1.5.5
-	github.com/yaitoo/xun v1.2.3-0.20260824202308-53c34982123d
+	github.com/yaitoo/xun v1.2.3-0.20260825021215-6eb54f2ddd78
 )
 
 require (
@@ -23,7 +23,8 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/yaitoo/async v1.0.4 // indirect
 	github.com/yuin/goldmark v1.8.5 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
