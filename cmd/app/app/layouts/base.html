@@ -6,6 +6,19 @@
   <title>{{.TempData.title}} - Xun Web</title>
   <link rel="stylesheet" href="{{asset "/assets/app.css"}}">
   <script src="{{asset "/htmx.js"}}"></script>
+  {{/*
+    head-extra is an opt-in <head> extension point. Pages that need to
+    inject <meta> tags (Open Graph, Twitter Card, JSON-LD, RSS link,
+    etc.) define their own head-extra block — for example, the blog
+    wrapper at app/blog/index.tpl reads from .Content.Params. Pages
+    that don't define it render nothing here.
+
+    The block declaration must live in the parent layout (here), not
+    in the page — Go's html/template only renders a `define` block
+    when something calls its corresponding `block` declaration. xun
+    doesn't provide any other head-injection mechanism, so the
+    declaration has to stay here for the call site to exist.
+  */}}
   {{block "head-extra" .}}{{end}}
 </head>
 <body class="min-h-screen flex flex-col">

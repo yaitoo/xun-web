@@ -10,6 +10,10 @@
                  Empty when no .yaml sidecar exists.
 
     content   — the article body itself.
+
+  The block declaration for head-extra lives in layouts/base.html —
+  the parent that calls it. This file only provides the implementation
+  via {{define}}.
 */}}
 
 {{define "head-extra"}}
