@@ -1103,10 +1103,12 @@ article:
 
 Templates read it as `.Content.Params.og`, `.Content.Params.twitter`, etc. The `app/blog/index.tpl` wrapper uses `Params` to populate `<head>` meta tags via a `head-extra` block on the base layout, and to render the date / slug / tags / reading-time strip in the article header.
 
-Concretely, the wrapper defines:
+Concretely, the wrapper fills the `<head>` slot **inline** at the top of the page template:
 
 ```html
-{{define "head-extra"}}
+<!--layout:base-->
+
+{{block "head" .}}
   {{with .Content.Params}}
     {{with .og}}
       <meta property="og:type" content="{{.type}}">
@@ -1119,9 +1121,13 @@ Concretely, the wrapper defines:
     {{end}}
   {{end}}
 {{end}}
+
+{{define "content"}}
+  ... the article ...
+{{end}}
 ```
 
-The base layout owns the `<head>` and exposes an empty `{{block "head-extra" .}}{{end}}` block; pages that want to inject head tags define `{{define "head-extra"}}…{{end}}` inside their wrapper, pages that don't care leave it empty (the layout's default renders nothing). Reuses the same opt-in-block pattern as `content`.
+The base layout owns `<head>` and exposes an empty `{{block "head" .}}{{end}}` slot. Pages that want to inject head tags use `{{block "head" .}}…{{end}}` directly inside the wrapper — the inline block both *defines* the template and *fills* the slot. Pages that don't care render nothing. This is the same opt-in-block pattern as `content`, just with the block written where it's used rather than in a separate `{{define}}` at the top of the file.
 
 Custom helpers are useful when working with `Params`: YAML arrays come back as `[]any`, not `[]string`. The repo registers a `joinSlice` template helper that takes a `[]any` and returns a string, used to render tag lists like `xun, tailwind, metadata`. (Named `joinSlice` rather than `join` because xun ships a built-in `join(sep string, a ...string)` whose two-arg form confuses the template engine when one arg is a slice literal.)
 
