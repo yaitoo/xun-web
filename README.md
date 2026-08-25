@@ -846,6 +846,7 @@ In **development** the tree lives at `./app/`:
 ```
 app/                                         (xun.WithContent("blog"))
 ├── blog/
+│   ├── index.html          ← section landing at /blog/
 │   ├── index.tpl           ← bubble-up wrapper, <!--layout:base-->
 │   ├── welcome-to-xun-content.md
 │   ├── routing-with-templates.md
@@ -853,16 +854,16 @@ app/                                         (xun.WithContent("blog"))
 │   └── 2026/
 │       └── nested-posts.md   ← nested directory becomes a URL prefix
 └── pages/
-    └── blog.html            ← section landing at /blog (regular page route)
+    └── blogs.html           ← full archive listing at /blogs (manually registered)
 ```
 
-xun's Content engine splits content files by extension (commit `53c34982123d`):
+xun's Content engine splits content files by extension (introduced in `53c34982123d`, refined in `bec6739fffb9` to fix issue #120):
 
 - `.md` → auto-registered as `GET /<slug>`
 - `.tpl` → bubble-up template only (no route)
-- `.html` (in `content/`) → page route, skipped by bubble-up
+- `.html` (in `content/`) → page route, skipped by bubble-up. `index.html` registers at the canonical `/<dir>/{$}` pattern, so `blog/index.html` → `GET /blog/{$}` (which `http.ServeMux` serves as `/blog` and `/blog/`).
 
-`app/blog/index.tpl` is the bubble-up wrapper used by every `.md` in this tree. `app/pages/blog.html` is the section landing at `/blog` — it's a regular page outside `content/`, registered via the standard page loader (which correctly handles `index.html → /<dir>/{$}`).
+`app/blog/index.tpl` is the bubble-up wrapper used by every `.md` in this tree. `app/blog/index.html` is the section landing. Both files live inside `content/`, the conventional location — no need for a workaround at `pages/`.
 
 In **production** the tree is deployed at `./blog/` next to the binary (see 11.2). xun, at startup, walks the directory and:
 
@@ -871,7 +872,7 @@ In **production** the tree is deployed at `./blog/` next to the binary (see 11.2
 | `blog/welcome-to-xun-content.md` | `GET /blog/welcome-to-xun-content` |
 | `blog/2026/nested-posts.md` | `GET /blog/2026/nested-posts` |
 | `blog/index.tpl` | bubble-up wrapper for every `.md` in this tree (not a route) |
-| `pages/blog.html` | `GET /blog` (section landing) |
+| `blog/index.html` | `GET /blog/{$}` — section landing |
 
 The wrapper is plain xun templating — `<!--layout:base-->`, a `{{define "content"}}` block, and `{{.Content.Body}}` for the rendered Markdown. Nothing Content-specific beyond reading `.Content.{Title,Description,Date,Body,Slug,Path}`.
 
@@ -935,11 +936,9 @@ xun's bubble-up looks for a **`.tpl`** template next to each `.md` file in this 
 4.  index.tpl                 (root fallback — usually wrong)
 ```
 
-`.html` files in `content/` are **not** consulted by bubble-up — that's the whole point of the `.tpl/.html` split: a directory may carry an `index.tpl` wrapper and an `index.html` page without the wrapper occupying the route. We have `blog/index.tpl` only, so **every post renders through the same wrapper**.
+`.html` files in `content/` are **not** consulted by bubble-up — that's the whole point of the `.tpl/.html` split: a directory may carry an `index.tpl` wrapper and an `index.html` page without the wrapper occupying the route.
 
-The section landing `/blog` lives at `app/pages/blog.html` (regular page route, **outside** `app/blog/`). This is the workaround for a current xun limitation: as of the latest main commit, `loadContentPage` registers `blog/index.html` at `GET /index` (not `/blog`) because its `TrimSuffix(rel, "/index.html")` doesn't strip the leading `/` from `rel`. The same code path treats `blog/index.md` as `GET /blog/index`. Putting the section landing in `pages/` instead sidesteps the bug while keeping the rest of the convention.
-
-> **Gotcha**: xun's Content engine and the regular page loader both walk their own directory trees, and both auto-register a route for `index.html`. They never see each other's files, but the resulting routes can collide if a `pages/<x>.html` matches a `content/<x>/` subtree. We avoid this by keeping `pages/blog.html` and `blog/` cleanly separated by directory.
+We carry both: `blog/index.tpl` is the wrapper shared by every post, `blog/index.html` is the section landing. They sit next to each other and serve different purposes.
 
 ### 11.4 GFM is on by default — but pick the right granularity
 
@@ -1003,12 +1002,7 @@ Key properties:
 
 4. **`xun.WithContent` only auto-registers routes**, it does **not** auto-list posts. A listing page needs a manual handler that walks the fsys (see `listBlogPosts` in `cmd/app/blogs.go`).
 
-5. **`app/blog/index.html` does NOT register at `/blog`.** Empirically verified against xun main `53c34982123d`:
-   - `app/blog/index.html` registers at **`GET /index`** — `loadContentPage` strips `dir+"/"` to get `rel = "index.html"`, then tries `TrimSuffix(rel, "/index.html")` which doesn't match (the leading `/` is already gone), so `rel` stays as `index.html` and `splitFile("index.html")` becomes `GET /index`.
-   - `app/blog/index.md` registers at **no route at all** — `loadContentFile` requires a bubble-up template; with no `index.tpl` sibling, the route is skipped (warning: `content has no bubble-up template`).
-   - The docs example (`content/2026/index.md → GET /2026/`) is aspirational; the code path doesn't implement it.
-
-   Workaround: put the section landing at `app/pages/blog.html` (regular page loader, which handles `index.html → /<dir>/{$}` correctly via slice trimming). When xun fixes the strip, we can move it back into `app/blog/`.
+5. **`app/blog/index.html` registers at the canonical `/blog/{$}`.** Fixed in xun commit `bec6739fffb9` (issue #120). The strip-order bug is gone; both `app/blog/index.html` and `app/blog/index.md` now register correctly. The `.tpl`/`.html` coexistence that motivated this commit is the canonical setup.
 
 6. **The overlay FS mounts at the mount prefix, not ".".** When `overlay` is `os.DirFS("./blog")`, paths to look up there must drop the `"blog/"` prefix before opening; my first pass forgot and xun got `open blog/foo.md: file does not exist`. Single-method `Open` + a `CutPrefix` check fixes it.
 
