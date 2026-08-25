@@ -1,0 +1,46 @@
+<!--layout:base-->
+{{define "content"}}
+<section class="py-16 px-6">
+  <div class="max-w-5xl mx-auto">
+    {{block "components/breadcrumb" .}}{{end}}
+    <div class="mb-12">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-dark-200 rounded-full border border-dark-300 text-sm text-gray-400 mb-6">
+        <span class="w-2 h-2 bg-tech-green rounded-full animate-pulse"></span>
+        powered by xun Content
+      </div>
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">
+        <span class="text-white">Blog</span>
+        <span class="text-gray-500">/</span>
+        <span class="text-tech-green">Posts</span>
+      </h1>
+      <p class="text-lg text-gray-400 max-w-2xl">
+        Every post below is a Markdown file in
+        <code class="text-tech-green">app/blog/</code>. xun walks the directory,
+        renders each file with goldmark, and exposes the result through a single
+        shared template.
+      </p>
+    </div>
+
+    {{if .Data}}
+    <div class="grid md:grid-cols-2 gap-6">
+      {{range .Data}}
+        {{block "components/blog-card" .}}{{end}}
+      {{end}}
+    </div>
+    {{else}}
+    <div class="card text-center py-12">
+      <p class="text-gray-400">No posts yet. Drop a <code class="text-tech-cyan">.md</code> file into <code class="text-tech-cyan">app/blog/</code> to get started.</p>
+    </div>
+    {{end}}
+
+    <div class="mt-12 card bg-dark-100/60">
+      <h2 class="text-lg font-semibold text-white mb-3">How this works</h2>
+      <ul class="space-y-2 text-sm text-gray-400">
+        <li><span class="text-tech-cyan font-mono">app/blog/&lt;slug&gt;.md</span> → <code class="text-white">GET /blog/&lt;slug&gt;</code></li>
+        <li><span class="text-tech-cyan font-mono">app/blog/&lt;dir&gt;/&lt;slug&gt;.md</span> → <code class="text-white">GET /blog/&lt;dir&gt;/&lt;slug&gt;</code></li>
+        <li><span class="text-tech-cyan font-mono">app/blog/&lt;dir&gt;/index.html</span> → section landing + bubble-up template</li>
+      </ul>
+    </div>
+  </div>
+</section>
+{{end}}

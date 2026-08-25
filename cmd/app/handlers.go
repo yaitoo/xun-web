@@ -32,6 +32,23 @@ type User struct {
 // handleLanding renders the public landing page. The page has no
 // business model (it's just marketing chrome), so `.Data` is nil; the
 // `title` auxiliary value goes on TempData so the layout can read it.
+// handleBlogsListing renders the /blogs index page. It walks the live
+// filesystem (dev) or the embedded fsys (production) to enumerate every
+// .md file under app/blog/, extracts a summary from each, and passes the
+// resulting slice as the page's .Data so the template can render cards.
+//
+// The walk happens on every request — cheap because the directory is
+// small, and accurate in dev where new posts appear without a restart.
+func handleBlogsListing(c *xun.Context) error {
+	posts, err := listBlogPosts(getFsys(), "blog")
+	if err != nil {
+		return err
+	}
+
+	c.Set("title", "Blog")
+	return c.View(posts, "blogs")
+}
+
 func handleLanding(c *xun.Context) error {
 	c.Set("title", "Xun Web Starter")
 	return c.View(nil, "index")

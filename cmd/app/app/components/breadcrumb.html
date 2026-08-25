@@ -1,0 +1,36 @@
+{{/*
+  components/breadcrumb
+
+  Renders ViewModel.Breadcrumb (added by xun's HtmlViewer when serving a
+  page). Each item is a BreadcrumbItem:
+
+    Path  — URL prefix leading to this node (root item has Path = "/").
+    Name  — link label, raw URL segment; root is fixed as "Home".
+    Title — hover hint, sourced from the .md H1 via ContentView.Title.
+    Last  — true on the trailing (current page) item; rendered as <span>.
+
+  ViewModel.Breadcrumb is nil on the root path; guard with {{with}} so the
+  template degrades gracefully.
+
+  Usage:
+
+    {{block "components/breadcrumb" .}}{{end}}
+*/}}
+{{with .Breadcrumb}}
+<nav aria-label="Breadcrumb" class="text-sm text-gray-400 mb-6">
+  <ol class="flex flex-wrap items-center gap-2">
+    {{range $i, $c := .}}
+      {{if $i}}
+        <li class="text-gray-600 select-none" aria-hidden="true">/</li>
+      {{end}}
+      <li>
+        {{if $c.Last}}
+          <span class="text-white font-medium" aria-current="page" title="{{$c.Title}}">{{$c.Name}}</span>
+        {{else}}
+          <a href="{{$c.Path}}" title="{{$c.Title}}" class="hover:text-tech-cyan transition-colors">{{$c.Name}}</a>
+        {{end}}
+      </li>
+    {{end}}
+  </ol>
+</nav>
+{{end}}

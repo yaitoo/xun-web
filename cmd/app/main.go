@@ -24,7 +24,11 @@ import (
 	"github.com/yaitoo/xun/ext/htmx"
 )
 
-//go:embed app/components
+// fsys holds the static assets that ship with the binary. We intentionally
+// do NOT embed `app/blog/` — blog content lives on disk so posts can be
+// added or edited without recompiling. See getFsys() for how on-disk blog
+// files are overlaid onto this embedded fsys at runtime.
+////go:embed app/components
 //go:embed app/layouts
 //go:embed app/pages
 //go:embed app/public
@@ -219,21 +223,63 @@ func runServers(handler http.Handler) error {
 	return nil
 }
 
-// getFsys returns the fs.FS to use for templates and assets.
-// In dev, it returns the local "./app" directory; otherwise it uses the embedded FS under root.
+// getFsys returns the fs.FS the xun engine uses to find templates,
+// components, layouts, pages, views, and assets. The Content tree
+// (blog/) is served from disk in both modes so posts can be added or
+// edited without recompiling or restarting the binary.
+//
+// Dev: live directory at ./app (already includes ./app/blog/).
+// Prod: embedded app/* + on-disk ./blog/ overlaid at the "blog" mount.
 func getFsys() fs.FS {
-
-	fi, err := os.Stat("./app")
-	if err == nil && fi.IsDir() {
+	// Dev: use the live directory, which already exposes ./app/blog/.
+	if fi, err := os.Stat("./app"); err == nil && fi.IsDir() {
 		return os.DirFS("./app")
 	}
 
-	app, _ := fs.Sub(fsys, "app")
-
-	if app == nil {
+	// Prod: start from the embedded app subtree.
+	app, err := fs.Sub(fsys, "app")
+	if err != nil || app == nil {
 		return fsys
 	}
+
+	// Overlay the on-disk blog directory on top of the embedded fsys so
+	// that xun.WithContent("blog") sees live posts without rebuilding.
+	// If ./blog doesn't exist (e.g. first deploy before any post), the
+	// fsys still works — the blog tree just renders nothing.
+	if fi, err := os.Stat("./blog"); err == nil && fi.IsDir() {
+		return overlayFS{base: app, overlay: os.DirFS("./blog"), mount: "blog"}
+	}
 	return app
+}
+
+// overlayFS serves `overlay` paths (with the `mount` prefix) from disk,
+// falling back to `base` for everything else. It is the simplest way to
+// merge an embedded fs.FS with a hot-reloadable directory without
+// recompiling the binary — used so blog posts can be edited live.
+//
+// Paths under overlay appear under `mount/...` in the resulting fsys,
+// matching where they would have been if embedded together with base.
+type overlayFS struct {
+	base    fs.FS
+	overlay fs.FS
+	mount   string
+}
+
+// Open looks up a path in overlay first when the path is under `mount`,
+// otherwise falls through to base. fs.WalkDir and fs.ReadDir only need
+// Open + the File interface returned by it, so this single method is
+// sufficient.
+func (o overlayFS) Open(name string) (fs.File, error) {
+	if rest, ok := strings.CutPrefix(name, o.mount+"/"); ok {
+		if f, err := o.overlay.Open(rest); err == nil {
+			return f, nil
+		}
+	} else if name == o.mount {
+		if f, err := o.overlay.Open("."); err == nil {
+			return f, nil
+		}
+	}
+	return o.base.Open(name)
 }
 
 func createApp(mux *http.ServeMux) *xun.App {
@@ -242,11 +288,27 @@ func createApp(mux *http.ServeMux) *xun.App {
 		xun.WithMux(mux),
 		xun.WithFsys(getFsys()),
 		xun.WithWatch(),
+		// Enable the Content feature for the app/blog/ directory.
+		// Every .md file under it becomes GET /blog/<slug>; .html
+		// files in the same tree serve as bubble-up templates that
+		// wrap the rendered markdown body.
+		xun.WithContent("blog"),
 		xun.WithHandlerViewers(&xun.JsonViewer{}),
 		xun.WithInterceptor(htmx.New()),
 		xun.WithBuildAssetURL(func(path string) bool {
 			return strings.HasPrefix(path, "/assets/")
 		}),
+		// Custom template helpers used by the blog feature. trimParagraph
+		// is used by the listing card to cap description previews;
+		// formatBlogDate renders .Content.Date consistently in UTC;
+		// joinSlice joins a []any into a string for head-meta tags
+		// (article tags, keywords, etc.) sourced from .Content.Params.
+		// Named joinSlice instead of join to avoid shadowing xun's
+		// built-in join (which takes a sep + variadic strings, not
+		// a slice).
+		xun.WithTemplateFunc("trimParagraph", trimParagraph),
+		xun.WithTemplateFunc("formatBlogDate", formatBlogDate),
+		xun.WithTemplateFunc("joinSlice", joinSlice),
 	)
 
 	app.Use(sessionMiddleware,

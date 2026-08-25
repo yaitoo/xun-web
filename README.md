@@ -835,7 +835,309 @@ Visit `http://localhost:8080/dashboard/ws` (must be logged in) to see the browse
 
 ---
 
-## 11. Quick Reference — Cheat Sheet
+## 11. Blog Feature (xun Content engine)
+
+The `app/blog/` tree is a **working demo of xun's Content feature**: drop a Markdown file in, get a route, rendered HTML, and a slug — no handler, no template wiring, no frontmatter. This section walks through the moving parts so you can extend the pattern to `/docs/`, `/changelog/`, or anything else.
+
+### 11.1 What you write vs. what xun does
+
+In **development** the tree lives at `./app/`:
+
+```
+app/                                         (xun.WithContent("blog"))
+├── blog/
+│   ├── index.html          ← section landing at /blog/{$}
+│   ├── index.tpl           ← bubble-up wrapper, <!--layout:base-->
+│   ├── welcome-to-xun-content.md
+│   ├── routing-with-templates.md
+│   ├── gfm-showcase.md
+│   ├── with-params.md      ← post that uses .yaml sidecar (see §11.9)
+│   ├── with-params.yaml    ← sidecar with og:/twitter:/article: keys
+│   └── 2026/
+│       └── nested-posts.md   ← nested directory becomes a URL prefix
+└── pages/
+    └── blogs.html           ← full archive listing at /blogs (manually registered)
+```
+
+xun's Content engine splits content files by extension (the `.tpl`/`.html` split landed in `v1.3.0`; the canonical `index.html → /<dir>/{$}` fix landed in `v1.3.0` as issue #120's fix):
+
+- `.md` → auto-registered as `GET /<slug>`
+- `.tpl` → bubble-up template only (no route)
+- `.html` (in `content/`) → page route, skipped by bubble-up. `index.html` registers at the canonical `/<dir>/{$}` pattern, so `blog/index.html` → `GET /blog/{$}` (which `http.ServeMux` serves as `/blog` and `/blog/`).
+
+`app/blog/index.tpl` is the bubble-up wrapper used by every `.md` in this tree. `app/blog/index.html` is the section landing. Both files live inside `content/`, the conventional location — no need for a workaround at `pages/`.
+
+In **production** the tree is deployed at `./blog/` next to the binary (see 11.2). xun, at startup, walks the directory and:
+
+| File | Becomes |
+|---|---|
+| `blog/welcome-to-xun-content.md` | `GET /blog/welcome-to-xun-content` |
+| `blog/2026/nested-posts.md` | `GET /blog/2026/nested-posts` |
+| `blog/gfm-showcase.md` | `GET /blog/gfm-showcase` |
+| `blog/with-params.md` (+ `.yaml`) | `GET /blog/with-params` (yaml sidecar enriches ContentView.Params; see §11.9) |
+| `blog/index.tpl` | bubble-up wrapper for every `.md` in this tree (not a route) |
+| `blog/index.html` | `GET /blog/{$}` — section landing |
+
+The wrapper is plain xun templating — `<!--layout:base-->`, a `{{define "content"}}` block, and `{{.Content.Body}}` for the rendered Markdown. Nothing Content-specific beyond reading `.Content.{Title,Description,Date,Body,Slug,Path}`.
+
+### 11.2 Wiring it up — and why blog is NOT embedded
+
+`main.go` enables the engine with one option, but the content directory is **deliberately excluded** from `//go:embed`:
+
+```go
+//go:embed app/components
+//go:embed app/layouts
+//go:embed app/pages
+//go:embed app/public
+//go:embed app/views
+// (no //go:embed app/blog — content stays on disk)
+var fsys embed.FS
+
+app := xun.New(
+    xun.WithFsys(getFsys()),
+    xun.WithContent("blog"),         // ← single line, no per-file handler
+    // ...
+)
+```
+
+Posts are **content, not code**. Compiling them into the binary would force a rebuild for every typo or new post. Instead, `getFsys()` returns a custom `overlayFS` that combines:
+
+| Source | Mount | Why |
+|---|---|---|
+| `fs.Sub(embedded, "app")` | `/components`, `/layouts`, `/pages`, `/public`, `/views` | Templates + assets ship with the binary |
+| `os.DirFS("./blog")` | `/blog` | Hot-reloadable content, never recompiled |
+
+```go
+// cmd/app/main.go (excerpt)
+func getFsys() fs.FS {
+    // Dev: live ./app already includes ./app/blog/.
+    if fi, err := os.Stat("./app"); err == nil && fi.IsDir() {
+        return os.DirFS("./app")
+    }
+    // Prod: overlay on-disk blog on top of embedded app/*.
+    app, _ := fs.Sub(fsys, "app")
+    if fi, err := os.Stat("./blog"); err == nil && fi.IsDir() {
+        return overlayFS{base: app, overlay: os.DirFS("./blog"), mount: "blog"}
+    }
+    return app
+}
+```
+
+The `overlayFS` type is ~15 lines: a single `Open(name)` that forwards to `overlay` when `name` starts with the mount prefix and falls back to `base` otherwise. That is enough for `fs.WalkDir` (which Content uses) and for `fs.ReadFile`.
+
+**Deployment contract**: ship the binary with `./blog/` next to it (or mount it via Docker volume). Adding or editing a post = save a `.md` file + (optional) `systemctl reload` so xun picks up the new file. No Go rebuild, no template recompile.
+
+`cmd/app/blogs.go` holds the listing helper (`BlogPost` summary type, `listBlogPosts` walker, `extractBlogMeta` regex). The listing page itself is a **manually registered** route — Content engine auto-registers posts but cannot auto-list them.
+
+### 11.3 The bubble-up template trick
+
+xun's bubble-up looks for a **`.tpl`** template next to each `.md` file in this order:
+
+```
+1.  blog/<slug>.tpl           (per-post override)
+2.  blog/<dir>/index.tpl      (section template)
+3.  blog/index.tpl            (top-level wrapper)
+4.  index.tpl                 (root fallback — usually wrong)
+```
+
+`.html` files in `content/` are **not** consulted by bubble-up — that's the whole point of the `.tpl/.html` split: a directory may carry an `index.tpl` wrapper and an `index.html` page without the wrapper occupying the route.
+
+We carry both: `blog/index.tpl` is the wrapper shared by every post, `blog/index.html` is the section landing. They sit next to each other and serve different purposes.
+
+### 11.4 GFM is on by default — but pick the right granularity
+
+xun's renderer is goldmark with `extension.GFM` already wired up. Verified in `app/blog/gfm-showcase.md`:
+
+| GFM feature | Syntax | Render result |
+|---|---|---|
+| Tables | `\| col \| col \|` | `<table>` with `<th>` / `<td>` |
+| Strikethrough | `~~text~~` | `<del>` |
+| Task lists | `- [ ] todo` / `- [x] done` | `<input type="checkbox" disabled>` |
+| Autolinks | bare `https://...` | `<a href>` |
+| Fenced code w/ hint | ` ```go ` | `<pre><code class="language-go">` |
+
+To turn GFM off (strict CommonMark) or add extensions (footnotes, math, mermaid), inject a custom renderer via `xun.WithContentRenderer`. See `content.go` in the xun repo for the hook signature.
+
+### 11.5 Styling goldmark output: three options we evaluated
+
+The wrapper just dumps `{{.Content.Body}}` — those `<h1>`, `<p>`, `<ul>` tags have **no Tailwind classes**, and Tailwind's purge only sees literal class names. We need explicit rules for the descendants of `.prose-content`. Three approaches:
+
+| Option | Pros | Cons | Verdict |
+|---|---|---|---|
+| **A. `@apply` rules in `tailwind.css`** | No deps; full control | Manual coverage of every tag; ~110 lines of CSS | Good if you want minimal surface area |
+| **B. Third-party Tailwind plugin (e.g. `@tailwindcss/typography`)** | Battle-tested, covers `<kbd>` `<details>` `<figure>` etc. | Pulls in a JS package and a package manager into the build chain; +9 KB CSS; less control over brand colour overrides | Rejected — we keep the UI toolchain to standalone CLIs only |
+| **C. Inline plugin in `tailwind.config.js`** | No deps (uses Tailwind's embedded JS runtime); full control; uses `theme('colors.*')`; CSS volume stays small | You write the rules yourself | **Chosen** |
+
+### 11.6 The chosen approach: inline plugin
+
+`cmd/app/app/tailwind.config.js` ends with a plain function passed to `plugins`:
+
+```js
+module.exports = {
+  // ...
+  plugins: [
+    function ({ addComponents, theme }) {
+      const c = theme('colors');
+      addComponents({
+        '.prose-content h1':   { color: c.white,        fontWeight: '700', fontSize: '2.25rem', /* ... */ },
+        '.prose-content code': { backgroundColor: c.dark[200], color: c.tech.cyan, /* ... */ },
+        '.prose-content blockquote': { borderLeftColor: c.tech.purple, /* ... */ },
+        // ... 28 rules covering h1-h4, p, a, strong, em, ul, ol, li, blockquote,
+        //     code, pre, hr, table, th, td, kbd, img, input[type=checkbox]
+      });
+    },
+  ],
+};
+```
+
+Key properties:
+
+- **Tailwind plugin signature is `({addComponents, theme}) => void`** — no wrapper module, no separate `plugin()` helper. Pass the function straight into `plugins: [...]`.
+- **The standalone `tailwindcss` binary evaluates the function in its embedded V8 runtime** — no JS toolchain on the host, no package manager, no lockfile.
+- **Brand colours via `theme('colors.*')`** — change `tech.cyan` once and both your prose CSS and your buttons update.
+
+### 11.7 Lessons learned (the gotchas)
+
+1. **The UI toolchain is intentionally CLIs-only.** `bin/tailwindcss` and `bin/esbuild` are pre-downloaded single-binary tools, checked in as symlinks. No package manager, no `node_modules/`, no lockfile. Every JS dependency that *would* require a toolchain is treated as a smell: if we can't ship it as a standalone binary, we don't ship it. This is why option B in 11.5 was rejected.
+
+2. **`addComponents` selectors only win if your `.md` source actually emits those tags**. goldmark escapes raw HTML by default — if you need a `<details>` or `<table>` to survive the round trip, you're fine. If you want inline `<style>` to render, you need GFM's `extension.GFM` (which xun already enables).
+
+3. **CSS attribute selectors in plugins are minified differently**. `.prose-content input[type="checkbox"]` becomes `.prose-content input[type=checkbox]` after minification — don't grep for the unminified form when verifying builds.
+
+4. **`xun.WithContent` only auto-registers routes**, it does **not** auto-list posts. A listing page needs a manual handler that walks the fsys (see `listBlogPosts` in `cmd/app/blogs.go`).
+
+5. **`app/blog/index.html` registers at the canonical `/blog/{$}`.** Fixed in xun `v1.3.0` (issue #120). The strip-order bug is gone; both `app/blog/index.html` and `app/blog/index.md` now register correctly. The `.tpl`/`.html` coexistence is the canonical setup.
+
+6. **The overlay FS mounts at the mount prefix, not ".".** When `overlay` is `os.DirFS("./blog")`, paths to look up there must drop the `"blog/"` prefix before opening; my first pass forgot and xun got `open blog/foo.md: file does not exist`. Single-method `Open` + a `CutPrefix` check fixes it.
+
+### 11.8 Breadcrumbs — auto-built by `HtmlViewer.Render`
+
+xun populates `ViewModel.Breadcrumb` on every HTML response, so templates get an ancestor chain for free — no Go helper, no template func, no handler-side computation. The chain is built from two existing sources:
+
+| Source | What it provides |
+|---|---|
+| `ctx.Request.URL.Path` | The segments. `Home` is hardcoded as the root item. |
+| `app.contentViews[pattern]` | Per-ancestor H1 (via `ContentView.Title`), used as the hover hint. |
+
+```go
+// xun/viewer.go (the public surface)
+type BreadcrumbItem struct {
+    Path  string // URL prefix; root has Path = "/"
+    Name  string // raw URL segment verbatim; root fixed as "Home"
+    Title string // ContentView.Title for that ancestor, empty otherwise
+    Last  bool   // true on the trailing (current page) item
+}
+
+type ViewModel struct {
+    TempData   map[string]any
+    Data       any
+    Content    *ContentView
+    Breadcrumb []BreadcrumbItem // top → bottom, trailing = current page; nil on root
+}
+```
+
+The component (`cmd/app/app/components/breadcrumb.html`) iterates the slice:
+
+```html
+{{with .Breadcrumb}}
+<nav aria-label="Breadcrumb" class="text-sm text-gray-400 mb-6">
+  <ol class="flex flex-wrap items-center gap-2">
+    {{range $i, $c := .}}
+      {{if $i}}<li class="text-gray-600 select-none" aria-hidden="true">/</li>{{end}}
+      <li>
+        {{if $c.Last}}
+          <span class="text-white font-medium" aria-current="page" title="{{$c.Title}}">{{$c.Name}}</span>
+        {{else}}
+          <a href="{{$c.Path}}" title="{{$c.Title}}" class="hover:text-tech-cyan transition-colors">{{$c.Name}}</a>
+        {{end}}
+      </li>
+    {{end}}
+  </ol>
+</nav>
+{{end}}
+```
+
+Drop the block into any page:
+
+```html
+<!-- inside the {{define "content"}} block -->
+{{block "components/breadcrumb" .}}{{end}}
+```
+
+Observed output:
+
+| Route | Rendered chain |
+|---|---|
+| `/` | `nil` (root, no chain) |
+| `/blogs` | `Home / blogs↑` |
+| `/blog/welcome-to-xun-content` | `Home / blog / welcome-to-xun-content↑` (Title = "Welcome to Xun Content" on hover) |
+| `/blog/2026/nested-posts` | `Home / blog / 2026 / nested-posts↑` |
+
+Two design points worth knowing:
+
+1. **`Name` is the raw URL segment.** "deep-dive" stays "deep-dive"; no `humanize`, no Title Case. If you want prettier labels, post-process in the template (`{{replace "-" " " $c.Name}}`) or supply a custom viewer. The framework deliberately doesn't guess at your URL conventions.
+2. **Intermediate segments link to URLs that may not exist as routes.** For us, `/blog` is not a real route (the wrapper `blog/index.html` resolves to `GET /{$}`); clicking it lands on a 404. The post page keeps a separate "Browse all posts →" link to `/blogs` to cover the gap. If you want section landings (`/blog/2026/`, `/blog/2026/index.html` to give `/blog/2026/` a real route), create the `index.html` and the chain will already point at it.
+
+The chain is `nil` on the root path; the `{{with}}` guard degrades gracefully. No option to disable — if you don't want the breadcrumb, just don't render the block.
+
+### 11.9 Per-post metadata via sidecar `.yaml` (issue #120 era)
+
+xun's Content engine reads an optional **`.yaml` sidecar** next to each `.md` file. The sidecar is parsed at startup and merged into `ContentView.Params` as `map[string]any`. The `.md` file remains the source of truth for the route; the `.yaml` only enriches the `ContentView` exposed to templates.
+
+```
+app/blog/
+├── index.tpl                       ← bubble-up wrapper
+├── with-params.md                  ← the post
+└── with-params.yaml                ← sidecar metadata
+```
+
+Sidecar contents can be anything — keys are template-defined, no schema enforced:
+
+```yaml
+og:
+  type: "article"
+  image: "https://example.com/static/blog/with-params.png"
+twitter:
+  card: "summary_large_image"
+  site: "@yaitoo"
+article:
+  tags: [xun, tailwind, metadata]
+  reading_time: "3 min"
+```
+
+Templates read it as `.Content.Params.og`, `.Content.Params.twitter`, etc. The `app/blog/index.tpl` wrapper uses `Params` to populate `<head>` meta tags via the `head` block on the base layout, and to render the date / slug / tags / reading-time strip in the article header.
+
+Concretely, the wrapper fills the `<head>` slot **inline** at the top of the page template:
+
+```html
+<!--layout:base-->
+
+{{block "head" .}}
+  {{with .Content.Params}}
+    {{with .og}}
+      <meta property="og:type" content="{{.type}}">
+      <meta property="og:title" content="{{$.Content.Title}}">
+      <meta property="og:image" content="{{.image}}">
+    {{end}}
+    {{with .twitter}}
+      <meta name="twitter:card" content="{{.card}}">
+      {{with .site}}<meta name="twitter:site" content="{{.}}">{{end}}
+    {{end}}
+  {{end}}
+{{end}}
+
+{{define "content"}}
+  ... the article ...
+{{end}}
+```
+
+The base layout owns `<head>` and exposes an empty `{{block "head" .}}{{end}}` slot. Pages that want to inject head tags use `{{block "head" .}}…{{end}}` directly inside the wrapper — the inline block both *defines* the template and *fills* the slot. Pages that don't care render nothing. This is the same opt-in-block pattern as `content`, just with the block written where it's used rather than in a separate `{{define}}` at the top of the file.
+
+Custom helpers are useful when working with `Params`: YAML arrays come back as `[]any`, not `[]string`. The repo registers a `joinSlice` template helper that takes a `[]any` and returns a string, used to render tag lists like `xun, tailwind, metadata`. (Named `joinSlice` rather than `join` because xun ships a built-in `join(sep string, a ...string)` whose two-arg form confuses the template engine when one arg is a slice literal.)
+
+---
+
+## 12. Quick Reference — Cheat Sheet
 
 | Need | API |
 |------|-----|
@@ -850,7 +1152,7 @@ Visit `http://localhost:8080/dashboard/ws` (must be logged in) to see the browse
 | Include component in layout | `{{block "components/nav" .}}{{end}}` — must match file path |
 | Include component in component | `{{template "user-item" .}}` — use base name, no `components/` prefix |
 | Page body block | `{{define "content"}}...{{end}}` — required in every page |
-| Optional page block | Must define in every page (can be empty): `{{define "head-extra"}}{{end}}` |
+| Optional page block | No empty definition needed. Layout declares `{{block "name" .}}default{{end}}`; pages fill it via `{{block "name" .}}content{{end}}` (or leave empty). The repo uses `head` for `<head>` extension tags. |
 | Read form field | `c.Request.FormValue("k")` |
 | Read path param | `c.Request.PathValue("k")` |
 | Stash typed value | `c.Set("k", v)` |
@@ -873,10 +1175,10 @@ Visit `http://localhost:8080/dashboard/ws` (must be logged in) to see the browse
 
 ---
 
-## 12. How to Run (for verification only)
+## 13. How to Run (for verification only)
 
 ```bash
-make install        # downloads tailwindcss + esbuild binaries (no npm needed)
+make install        # downloads tailwindcss + esbuild CLI binaries (no JS toolchain on host)
 make dev            # watches CSS, runs `go run ./cmd/app` (requires .env)
 
 make build          # compiles UI + `go build -o bin/app ./cmd/app`
@@ -890,6 +1192,6 @@ Demo login (after migrations): `demo@example.com` / `demo123`.
 
 ---
 
-## 13. License
+## 14. License
 
 MIT

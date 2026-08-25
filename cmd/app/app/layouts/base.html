@@ -6,6 +6,13 @@
   <title>{{.TempData.title}} - Xun Web</title>
   <link rel="stylesheet" href="{{asset "/assets/app.css"}}">
   <script src="{{asset "/htmx.js"}}"></script>
+  {{/*
+    head is the <head> extension slot. Pages opt in by writing
+    {{block "head" .}}…{{end}} directly inside their content — see
+    app/blog/index.tpl for the Open Graph / Twitter Card example.
+    Pages that don't fill it (login, dashboard, ws, …) render nothing.
+  */}}
+  {{block "head" .}}{{end}}
 </head>
 <body class="min-h-screen flex flex-col">
   {{block "components/nav" .}}{{end}}
