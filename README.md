@@ -846,11 +846,13 @@ In **development** the tree lives at `./app/`:
 ```
 app/                                         (xun.WithContent("blog"))
 ├── blog/
-│   ├── index.html          ← section landing at /blog/
+│   ├── index.html          ← section landing at /blog/{$}
 │   ├── index.tpl           ← bubble-up wrapper, <!--layout:base-->
 │   ├── welcome-to-xun-content.md
 │   ├── routing-with-templates.md
 │   ├── gfm-showcase.md
+│   ├── with-params.md      ← post that uses .yaml sidecar (see §11.9)
+│   ├── with-params.yaml    ← sidecar with og:/twitter:/article: keys
 │   └── 2026/
 │       └── nested-posts.md   ← nested directory becomes a URL prefix
 └── pages/
@@ -871,6 +873,8 @@ In **production** the tree is deployed at `./blog/` next to the binary (see 11.2
 |---|---|
 | `blog/welcome-to-xun-content.md` | `GET /blog/welcome-to-xun-content` |
 | `blog/2026/nested-posts.md` | `GET /blog/2026/nested-posts` |
+| `blog/gfm-showcase.md` | `GET /blog/gfm-showcase` |
+| `blog/with-params.md` (+ `.yaml`) | `GET /blog/with-params` (yaml sidecar enriches ContentView.Params; see §11.9) |
 | `blog/index.tpl` | bubble-up wrapper for every `.md` in this tree (not a route) |
 | `blog/index.html` | `GET /blog/{$}` — section landing |
 
@@ -1101,7 +1105,7 @@ article:
   reading_time: "3 min"
 ```
 
-Templates read it as `.Content.Params.og`, `.Content.Params.twitter`, etc. The `app/blog/index.tpl` wrapper uses `Params` to populate `<head>` meta tags via a `head-extra` block on the base layout, and to render the date / slug / tags / reading-time strip in the article header.
+Templates read it as `.Content.Params.og`, `.Content.Params.twitter`, etc. The `app/blog/index.tpl` wrapper uses `Params` to populate `<head>` meta tags via the `head` block on the base layout, and to render the date / slug / tags / reading-time strip in the article header.
 
 Concretely, the wrapper fills the `<head>` slot **inline** at the top of the page template:
 
@@ -1148,7 +1152,7 @@ Custom helpers are useful when working with `Params`: YAML arrays come back as `
 | Include component in layout | `{{block "components/nav" .}}{{end}}` — must match file path |
 | Include component in component | `{{template "user-item" .}}` — use base name, no `components/` prefix |
 | Page body block | `{{define "content"}}...{{end}}` — required in every page |
-| Optional page block | Must define in every page (can be empty): `{{define "head-extra"}}{{end}}` |
+| Optional page block | No empty definition needed. Layout declares `{{block "name" .}}default{{end}}`; pages fill it via `{{block "name" .}}content{{end}}` (or leave empty). The repo uses `head` for `<head>` extension tags. |
 | Read form field | `c.Request.FormValue("k")` |
 | Read path param | `c.Request.PathValue("k")` |
 | Stash typed value | `c.Set("k", v)` |
