@@ -12,10 +12,11 @@
       <span class="text-white">Section</span>
     </h1>
     <p class="text-lg text-gray-400 mb-10 max-w-xl mx-auto">
-      This is the <code class="text-tech-cyan">/blog</code> section landing — registered from
-      <code class="text-tech-cyan">app/pages/blog.html</code> by xun's regular page loader.
-      Each Markdown file in <code class="text-tech-cyan">app/blog/</code> is a sibling .md and renders
-      through <code class="text-tech-cyan">app/blog/index.tpl</code> via bubble-up.
+      This is the <code class="text-tech-cyan">/blog/</code> section landing — registered
+      automatically by xun's Content engine from
+      <code class="text-tech-cyan">app/blog/index.html</code>. The sibling
+      <code class="text-tech-cyan">app/blog/index.tpl</code> is the bubble-up wrapper used
+      by every <code class="text-tech-cyan">.md</code> in this tree.
     </p>
     <a href="/blogs" class="btn btn-primary text-lg px-8 py-3">Browse all posts</a>
     <a href="/blog/gfm-showcase" class="btn btn-secondary text-lg px-8 py-3 mt-3">Try the GFM showcase</a>
