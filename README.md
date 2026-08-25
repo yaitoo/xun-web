@@ -859,7 +859,7 @@ app/                                         (xun.WithContent("blog"))
     └── blogs.html           ← full archive listing at /blogs (manually registered)
 ```
 
-xun's Content engine splits content files by extension (introduced in `53c34982123d`, refined in `bec6739fffb9` to fix issue #120):
+xun's Content engine splits content files by extension (the `.tpl`/`.html` split landed in `v1.3.0`; the canonical `index.html → /<dir>/{$}` fix landed in `v1.3.0` as issue #120's fix):
 
 - `.md` → auto-registered as `GET /<slug>`
 - `.tpl` → bubble-up template only (no route)
@@ -1006,7 +1006,7 @@ Key properties:
 
 4. **`xun.WithContent` only auto-registers routes**, it does **not** auto-list posts. A listing page needs a manual handler that walks the fsys (see `listBlogPosts` in `cmd/app/blogs.go`).
 
-5. **`app/blog/index.html` registers at the canonical `/blog/{$}`.** Fixed in xun commit `bec6739fffb9` (issue #120). The strip-order bug is gone; both `app/blog/index.html` and `app/blog/index.md` now register correctly. The `.tpl`/`.html` coexistence that motivated this commit is the canonical setup.
+5. **`app/blog/index.html` registers at the canonical `/blog/{$}`.** Fixed in xun `v1.3.0` (issue #120). The strip-order bug is gone; both `app/blog/index.html` and `app/blog/index.md` now register correctly. The `.tpl`/`.html` coexistence is the canonical setup.
 
 6. **The overlay FS mounts at the mount prefix, not ".".** When `overlay` is `os.DirFS("./blog")`, paths to look up there must drop the `"blog/"` prefix before opening; my first pass forgot and xun got `open blog/foo.md: file does not exist`. Single-method `Open` + a `CutPrefix` check fixes it.
 
