@@ -2,21 +2,19 @@
 {{/*
   Blog post wrapper.
 
-  Two defined blocks:
+  head slot — filled via {{block "head" .}}…{{end}} below, declares the
+  meta tags right next to where the rest of the page lives, instead of
+  in a separate define block at the top of the file. The default in
+  base.html's {{block "head" .}}{{end}} is empty.
 
-    head-extra — <meta> tags (Open Graph, Twitter Card, JSON-LD, etc.)
-                 sourced from .Content.Params, the sibling .yaml file
-                 xun's Content engine merges into ContentView.Params.
-                 Empty when no .yaml sidecar exists.
+  content slot — the article body itself.
 
-    content   — the article body itself.
-
-  The block declaration for head-extra lives in layouts/base.html —
-  the parent that calls it. This file only provides the implementation
-  via {{define}}.
+  head is filled inline (not via {{define "head"}}{{end}}) because this
+  template's main job IS the content block, and the head block here
+  is just an opt-in tag injection.
 */}}
 
-{{define "head-extra"}}
+{{block "head" .}}
   {{with .Content.Params}}
     {{with .og}}
       <meta property="og:type" content="{{.type}}">
