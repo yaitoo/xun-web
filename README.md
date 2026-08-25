@@ -1076,6 +1076,55 @@ Two design points worth knowing:
 
 The chain is `nil` on the root path; the `{{with}}` guard degrades gracefully. No option to disable — if you don't want the breadcrumb, just don't render the block.
 
+### 11.9 Per-post metadata via sidecar `.yaml` (issue #120 era)
+
+xun's Content engine reads an optional **`.yaml` sidecar** next to each `.md` file. The sidecar is parsed at startup and merged into `ContentView.Params` as `map[string]any`. The `.md` file remains the source of truth for the route; the `.yaml` only enriches the `ContentView` exposed to templates.
+
+```
+app/blog/
+├── index.tpl                       ← bubble-up wrapper
+├── with-params.md                  ← the post
+└── with-params.yaml                ← sidecar metadata
+```
+
+Sidecar contents can be anything — keys are template-defined, no schema enforced:
+
+```yaml
+og:
+  type: "article"
+  image: "https://example.com/static/blog/with-params.png"
+twitter:
+  card: "summary_large_image"
+  site: "@yaitoo"
+article:
+  tags: [xun, tailwind, metadata]
+  reading_time: "3 min"
+```
+
+Templates read it as `.Content.Params.og`, `.Content.Params.twitter`, etc. The `app/blog/index.tpl` wrapper uses `Params` to populate `<head>` meta tags via a `head-extra` block on the base layout, and to render the date / slug / tags / reading-time strip in the article header.
+
+Concretely, the wrapper defines:
+
+```html
+{{define "head-extra"}}
+  {{with .Content.Params}}
+    {{with .og}}
+      <meta property="og:type" content="{{.type}}">
+      <meta property="og:title" content="{{$.Content.Title}}">
+      <meta property="og:image" content="{{.image}}">
+    {{end}}
+    {{with .twitter}}
+      <meta name="twitter:card" content="{{.card}}">
+      {{with .site}}<meta name="twitter:site" content="{{.}}">{{end}}
+    {{end}}
+  {{end}}
+{{end}}
+```
+
+The base layout owns the `<head>` and exposes an empty `{{block "head-extra" .}}{{end}}` block; pages that want to inject head tags define `{{define "head-extra"}}…{{end}}` inside their wrapper, pages that don't care leave it empty (the layout's default renders nothing). Reuses the same opt-in-block pattern as `content`.
+
+Custom helpers are useful when working with `Params`: YAML arrays come back as `[]any`, not `[]string`. The repo registers a `joinSlice` template helper that takes a `[]any` and returns a string, used to render tag lists like `xun, tailwind, metadata`. (Named `joinSlice` rather than `join` because xun ships a built-in `join(sep string, a ...string)` whose two-arg form confuses the template engine when one arg is a slice literal.)
+
 ---
 
 ## 12. Quick Reference — Cheat Sheet
