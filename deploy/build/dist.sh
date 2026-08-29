@@ -5,8 +5,8 @@
 # app.yml` to copy the binary onto each target host.
 #
 # Usage (from the repo root):
-#   ./build/dist.sh              # produces ./dist/app
-#   APP_NAME=… ./build/dist.sh   # override binary name (rare)
+#   ./deploy/build/dist.sh              # produces ./dist/app
+#   APP_NAME=… ./deploy/build/dist.sh   # override binary name (rare)
 #
 # Requires Docker with buildx (`brew install docker-buildx` on macOS).
 
@@ -15,9 +15,10 @@ set -euo pipefail
 APP_NAME=${APP_NAME:-yaitoo}
 DIST_DIR=${DIST_DIR:-./dist}
 
-# Always land in the repo root regardless of cwd. `cd ..` would walk
-# OUT of the repo when invoked via `./build/dist.sh`.
-cd "$(dirname "$0")/.."
+# Always land in the repo root regardless of cwd. `$(dirname "$0")/..`
+# would only get us to `deploy/`, since this script now lives at
+# `deploy/build/dist.sh` — one more `..` reaches the repo root.
+cd "$(dirname "$0")/../.."
 
 mkdir -p "$DIST_DIR"
 
@@ -27,7 +28,7 @@ docker buildx build --progress plain \
   --platform=linux/amd64 \
   --build-arg "APP_NAME=$APP_NAME" \
   --target export-stage \
-  -f ./build/docker/dist.dockerfile . \
+  -f ./deploy/build/Dockerfile . \
   -o "type=local,dest=$DIST_DIR"
 
 echo

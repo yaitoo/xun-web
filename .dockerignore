@@ -19,6 +19,11 @@ cmd/app/app/public/assets/app.min.js.map
 # SQLite data directory
 data/
 
+# Ansible deployment tree (irrelevant to building the Go binary inside
+# the image; the Dockerfile itself lives under deploy/build/ and is
+# kept accessible because it's referenced explicitly by `-f`).
+deploy/playbooks/
+
 # IDE and editor files
 .vscode/
 .idea/
