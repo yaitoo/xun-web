@@ -3,8 +3,8 @@
 # Pre-flight: verify the artefact produced by `make build-dist` actually
 # exists before we start touching the target host. This catches the
 # common mistake of running the playbook before rebuilding, and
-# surfaces dist.dockerfile issues (e.g. COPY path bug → no ./dist/app)
-# as a clear error here instead of an opaque "file not found" later.
+# surfaces Dockerfile issues (e.g. COPY path bug → no ./dist/app) as a
+# clear error here instead of an opaque "file not found" later.
 - name: Verify built artefact exists locally
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/../../dist/app"

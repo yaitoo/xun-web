@@ -1,4 +1,4 @@
-.PHONY: install dev build build-ui build-dist build-golang watch clean run fmt tidy download-ui-tools require-env warn-env env-show
+.PHONY: install dev build build-ui build-dist watch clean run fmt tidy download-ui-tools require-env warn-env env-show
 
 # ── .env auto-loading ────────────────────────────────────────────────────────
 # `.env` is git-ignored; `.env.example` is the tracked template. The app
@@ -195,12 +195,11 @@ fmt:
 tidy:
 	go mod tidy
 
-# Distribution build: run the Docker pipeline (./build/dist.sh) to
-# produce the deployable package and export it via `buildx --output`
+# Distribution build: run the Docker pipeline (./deploy/build/dist.sh)
+# to produce the deployable package and export it via `buildx --output`
 # into ./dist/. Kept strictly separate from `./bin/` (the output of the
 # local `build` target) so the two never overwrite each other. The base
-# image is pulled from Docker Hub as `imlangzi/yaitoo:golang` (built and
-# published by `make build-golang`).
+# image is pulled from Docker Hub as `imlangzi/yaitoo:golang`.
 #
 # Depends on `download-ui-tools` so the host's resolve-cli populates
 # ./bin/{tailwindcss,esbuild} with the HOST-arch binaries — purely for
@@ -208,19 +207,10 @@ tidy:
 # ignores ./bin/ (it's filtered out by .dockerignore to prevent a
 # host-arch tailwindcss from `exec format error`-ing inside the
 # linux/amd64 container) and downloads linux-x64 variants inside the
-# container via dist.dockerfile's RUN.
+# container via the Dockerfile in deploy/build/.
 build-dist: download-ui-tools
 	@mkdir -p dist
-	$(ENV_LOAD) ./build/dist.sh
-
-# Base image build: publish imlangzi/yaitoo:golang to Docker Hub. The
-# local image is built only as a side-effect of pushing and is removed
-# afterwards so subsequent `make build-dist` runs always pull fresh from
-# the registry. Run this before `make build-dist` on a fresh machine.
-build-golang:
-	$(ENV_LOAD) ./build/golang.sh
-	docker push imlangzi/yaitoo:golang
-	docker rmi imlangzi/yaitoo:golang
+	$(ENV_LOAD) ./deploy/build/dist.sh
 
 # Convenience: fetch the UI tools without building anything.
 install: download-ui-tools
