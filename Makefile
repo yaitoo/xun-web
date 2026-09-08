@@ -1,4 +1,4 @@
-.PHONY: install dev build build-ui build-dist watch clean run fmt tidy download-ui-tools require-env warn-env env-show
+.PHONY: install dev build build-ui build-dist build-dist-npm watch clean run fmt tidy download-ui-tools require-env warn-env env-show
 
 # ── .env auto-loading ────────────────────────────────────────────────────────
 # `.env` is git-ignored; `.env.example` is the tracked template. The app
@@ -195,9 +195,9 @@ fmt:
 tidy:
 	go mod tidy
 
-# Distribution build: run the Docker pipeline (./deploy/build/dist.sh)
+# Distribution build: run the Docker pipeline (./deploy/build/dist-golang.sh)
 # to produce the deployable package and export it via `buildx --output`
-# into ./dist/. Kept strictly separate from `./bin/` (the output of the
+# into ./dist/app. Kept strictly separate from `./bin/` (the output of the
 # local `build` target) so the two never overwrite each other. The base
 # image is pulled from Docker Hub as `imlangzi/yaitoo:golang`.
 #
@@ -207,10 +207,19 @@ tidy:
 # ignores ./bin/ (it's filtered out by .dockerignore to prevent a
 # host-arch tailwindcss from `exec format error`-ing inside the
 # linux/amd64 container) and downloads linux-x64 variants inside the
-# container via the Dockerfile in deploy/build/.
+# container via the Dockerfile in deploy/build/golang.Dockerfile.
+#
+# `build-dist-npm` runs the parallel pipeline against the pnpm + Go
+# worked example (`deploy/build/npm.Dockerfile`) and produces
+# `./dist/app-npm`. See `README.md §14` for the BuildKit cache-mount
+# pattern that both Dockerfiles demonstrate.
 build-dist: download-ui-tools
 	@mkdir -p dist
-	$(ENV_LOAD) ./deploy/build/dist.sh
+	$(ENV_LOAD) ./deploy/build/dist-golang.sh
+
+build-dist-npm: download-ui-tools
+	@mkdir -p dist
+	$(ENV_LOAD) ./deploy/build/dist-npm.sh
 
 # Convenience: fetch the UI tools without building anything.
 install: download-ui-tools
