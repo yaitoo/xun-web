@@ -1182,7 +1182,8 @@ make install        # downloads tailwindcss + esbuild CLI binaries (no JS toolch
 make dev            # watches CSS, runs `go run ./cmd/app` (requires .env)
 
 make build          # compiles UI + `go build -o bin/app ./cmd/app`
-make build-dist     # Docker cross-compile → ./dist/
+make build-dist     # Docker cross-compile → ./dist/app
+make build-dist-npm # Docker cross-compile pnpm+Go demo → ./dist/app-npm (see §14)
 
 cp .env.example .env
 go run ./cmd/app    # migrate-on-startup; APP_ADDR_HTTP=:8080 to override port
@@ -1192,6 +1193,129 @@ Demo login (after migrations): `demo@example.com` / `demo123`.
 
 ---
 
-## 14. License
+## 14. BuildKit cache-mount gotchas
+
+This section applies to consumers of `imlangzi/yaitoo:golang` and
+`imlangzi/yaitoo:npm` who build Docker images via BuildKit. The
+repository's own distribution Dockerfiles (`deploy/build/golang.Dockerfile`
+and `deploy/build/npm.Dockerfile`) demonstrate the pattern — read them
+side-by-side with the explanations below.
+
+### The gotcha
+
+`--mount=type=cache` in BuildKit is **scoped per `RUN`**. When a `RUN`
+exits, the mount is unmounted. The cache's contents are written back
+to the BuildKit cache backend, but **not** into the image layer. The
+`target=` directory is empty in the next `RUN`, even if `target=`
+matches.
+
+The mechanism for cross-`RUN` sharing is the **cache namespace**,
+controlled by `id=`. The same `id` across `RUN`s shares the same
+namespace; **anonymous mounts (no `id`) may get a fresh namespace per
+`RUN`**, even when `target=` is identical — defeating the cache.
+
+### Layer-ordering principle
+
+Docker builds run linearly: a layer only re-runs when its inputs
+change. Place low-frequency-change deps first so their caches survive
+more subsequent builds:
+
+| Layer | Invalidates when | Where it lives in this repo |
+|---|---|---|
+| `pnpm install` | `pnpm-lock.yaml` / `package.json` change (rare) | `npm.Dockerfile` (top of stack) |
+| `go mod download` | `go.mod` / `go.sum` change (occasional) | both Dockerfiles |
+| source + `make build` | any source-file change (frequent) | bottom of stack |
+
+**Cache mounts are independent of layer invalidation.** `id=gomod`
+populated by `go mod download` persists in the BuildKit cache across
+builds even when the `go mod download` layer is itself invalidated by
+a source change. So layer ordering controls only whether the *RUN*
+re-executes; the cache itself stays warm either way. The point of
+layer ordering is to **skip the network round-trip** for unchanged
+deps.
+
+This is also why `pnpm install` should sit *above* `go mod download`:
+pnpm-lock changes very rarely, so its layer is cached most often,
+and the pnpm install payload is the largest single network hit. Put
+it at the top of the stack so it's reused most often.
+
+### Cache mounts per RUN
+
+Each RUN should declare **only the mounts it actually consumes** —
+not all of them:
+
+| RUN | Reads from | Mounts to declare |
+|---|---|---|
+| `pnpm install` | `${PNPM_HOME}` | `id=pnpm` |
+| `go mod download` | `/root/go/pkg/mod` (writes) | `id=gomod` |
+| `make build` | `/root/go/pkg/mod` (reads); `/root/.cache/go-build` (reads/writes); `${PNPM_HOME}` (reads, if `make build` invokes `pnpm run build`) | `id=gomod`, `id=gobuild`, `id=pnpm` |
+
+`go mod download` is module-fetching only — it does not invoke the
+compiler, so it does not touch GOCACHE. The mount list above reflects
+that: `id=gobuild` is declared only on the build RUN, not on
+`go mod download`.
+
+The build RUN redeclares **all** the mounts it might transitively need
+because `--mount=type=cache` is unmounted when its RUN exits —
+`go build` cannot see the populated module cache unless `id=gomod` is
+re-mounted, even though the cache itself is still warm.
+
+### `$GOCACHE` pinning
+
+Pin `$GOCACHE` to the cache mount's `target=`:
+
+```dockerfile
+ENV GOCACHE=/root/.cache/go-build
+```
+
+This is **defensive**: if the cache mount is ever misconfigured or
+removed, `go build` still has a stable path for its compile cache.
+The same applies on the pnpm side — `${PNPM_HOME}` and the `pnpm`
+binary on `PATH` must be set by the base image (this is part of the
+`imlangzi/yaitoo:npm` contract). If you're building your own base,
+set them yourself before the pre-warm RUN.
+
+### Worked examples in this repo
+
+- **`deploy/build/golang.Dockerfile`** — 4-layer Go-only build (Go
+  modules → source → build). Build via `make build-dist` →
+  `./dist/app`.
+- **`deploy/build/npm.Dockerfile`** — 6-layer pnpm + Go demo
+  (pnpm manifests → pnpm install → go manifests → go mod download →
+  source → build). Build via `make build-dist-npm` →
+  `./dist/app-npm`.
+
+`make build-dist-npm` exists primarily to exercise the pnpm cache
+pattern end-to-end; xun-web itself doesn't use pnpm in production.
+
+### What goes wrong without this
+
+The symptom differs by dep type, but the failure mode (anonymous
+mount → fresh namespace → empty target on next RUN) is the same:
+
+- **pnpm** — `pnpm install` writes through the cache mount to
+  `${PNPM_HOME}/store`. With an anonymous mount, the next RUN sees
+  an empty store, and `pnpm run build` re-downloads every package
+  from the registry. This is the failure pattern in
+  [yaitoo/starter#3](https://github.com/yaitoo/starter/issues/3).
+- **Go** — `go mod download` writes to `$GOMODCACHE` (a normal
+  filesystem path, not a cache mount). Modules persist via the image
+  layer, so `go build` does not re-fetch them. The actual symptom of
+  an anonymous `id=` on the *build* cache (`/root/.cache/go-build`)
+  is that `go build`'s compile-cache is invalidated every RUN —
+  incremental builds lose their speedup, but builds still succeed.
+
+In both cases the fix is the same: stable `id=`. For pnpm, it skips
+the network round-trip; for Go, it preserves the build-cache hit.
+
+Related fix (already shipped):
+[yaitoo/xun-web#6](https://github.com/yaitoo/xun-web/issues/6).
+
+BuildKit cache backends:
+<https://docs.docker.com/build/cache/backends/>.
+
+---
+
+## 15. License
 
 MIT

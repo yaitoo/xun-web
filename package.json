@@ -1,0 +1,6 @@
+{
+  "name": "xun-web-npm-build-demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stub manifest for the deploy/build/npm.Dockerfile worked example (see README §14). xun-web itself is Go-only and does not consume this package — it exists solely so `make build-dist-npm` actually exercises the pnpm cache-mount pattern end-to-end. Replace or delete these files if you copy xun-web as a starter for a project that uses pnpm for real."
+}
